@@ -3,6 +3,8 @@ import { connectDB } from '@/lib/mongodb'
 import { TeamMember } from '@/lib/models/TeamMember'
 import { requireFounder } from '@/lib/adminGuard'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
   const guard = await requireFounder()
   if ('error' in guard) return guard.error

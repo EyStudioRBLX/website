@@ -66,7 +66,7 @@ type Tab = 'overview' | 'users' | 'announcements' | 'games' | 'team' | 'position
 interface FormField {
   id: string
   label: string
-  type: 'text' | 'textarea' | 'url' | 'select' | 'image'
+  type: 'text' | 'textarea' | 'url' | 'select' | 'image' | 'checkbox'
   placeholder: string
   required: boolean
   options: string[]
@@ -1603,6 +1603,7 @@ function FormEditorPanel({ position, onClose, showToast }: {
                 <option value="url">URL (Link)</option>
                 <option value="select">Auswahl (Dropdown)</option>
                 <option value="image">Bild-Upload (Beweis / Screenshot)</option>
+                <option value="checkbox">Checkbox-Optionen (Mehrfachauswahl)</option>
               </AdminSelect>
             </div>
           </div>
@@ -1611,7 +1612,7 @@ function FormEditorPanel({ position, onClose, showToast }: {
             <AdminInput placeholder="z.B. Schreibe hier deine Antwort…" value={fieldForm.placeholder}
               onChange={(e) => setFieldForm((f) => ({ ...f, placeholder: e.target.value }))} />
           </div>
-          {fieldForm.type === 'select' && (
+          {(fieldForm.type === 'select' || fieldForm.type === 'checkbox') && (
             <div>
               <label className="block text-rb-light/50 text-xs mb-1">Optionen (kommagetrennt)</label>
               <AdminInput placeholder="Option A, Option B, Option C" value={optionsRaw}
@@ -2110,6 +2111,15 @@ function BewerbungenTab({ applications, onRefresh, showToast, highlightedId }: {
                           >
                             <ExternalLink size={12} /> {r.value}
                           </a>
+                        ) : r.value.includes(',') && !r.value.startsWith('http') ? (
+                          <div className="flex flex-wrap gap-1.5">
+                            {r.value.split(',').map((v) => v.trim()).filter(Boolean).map((v) => (
+                              <span key={v} className="rb-badge text-xs"
+                                style={{ background: 'rgba(109,40,217,0.15)', color: '#c4b5fd', border: '1px solid rgba(109,40,217,0.3)' }}>
+                                {v}
+                              </span>
+                            ))}
+                          </div>
                         ) : r.value ? (
                           <div
                             className="rounded-lg p-3"

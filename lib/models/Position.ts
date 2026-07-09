@@ -3,7 +3,7 @@ import mongoose, { Schema, Document, models, model } from 'mongoose'
 export interface FormField {
   id: string
   label: string
-  type: 'text' | 'textarea' | 'url' | 'select' | 'image'
+  type: 'text' | 'textarea' | 'url' | 'select' | 'image' | 'checkbox'
   placeholder: string
   required: boolean
   options: string[]
@@ -25,7 +25,7 @@ const FormFieldSchema = new Schema<FormField>(
   {
     id: { type: String, required: true },
     label: { type: String, required: true },
-    type: { type: String, enum: ['text', 'textarea', 'url', 'select', 'image'], default: 'text' },
+    type: { type: String, enum: ['text', 'textarea', 'url', 'select', 'image', 'checkbox'], default: 'text' },
     placeholder: { type: String, default: '' },
     required: { type: Boolean, default: false },
     options: [{ type: String }],

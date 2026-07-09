@@ -81,6 +81,57 @@ function ApplySelect(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
   )
 }
 
+function CheckboxGroupField({
+  field,
+  value,
+  onChange,
+}: {
+  field: FormField
+  value: string
+  onChange: (val: string) => void
+}) {
+  const selected = value ? value.split(',').map((v) => v.trim()).filter(Boolean) : []
+
+  function toggle(opt: string) {
+    const next = selected.includes(opt)
+      ? selected.filter((s) => s !== opt)
+      : [...selected, opt]
+    onChange(next.join(', '))
+  }
+
+  return (
+    <div className="space-y-2">
+      {field.options.map((opt) => {
+        const checked = selected.includes(opt)
+        return (
+          <label
+            key={opt}
+            className="flex items-center gap-3 rounded-lg px-3 py-2.5 cursor-pointer"
+            style={{
+              background: checked ? 'rgba(109,40,217,0.18)' : 'rgba(109,40,217,0.06)',
+              border: `1px solid ${checked ? 'rgba(109,40,217,0.5)' : 'rgba(109,40,217,0.2)'}`,
+              transition: 'all 0.15s',
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={checked}
+              onChange={() => toggle(opt)}
+              style={{ accentColor: '#8b5cf6', width: '15px', height: '15px', cursor: 'pointer' }}
+            />
+            <span className="text-sm" style={{ color: checked ? '#c4b5fd' : 'rgba(196,181,253,0.6)' }}>
+              {opt}
+            </span>
+          </label>
+        )
+      })}
+      {field.options.length === 0 && (
+        <p className="text-xs text-rb-light/30 italic">Keine Optionen konfiguriert.</p>
+      )}
+    </div>
+  )
+}
+
 function ImageUploadField({
   fieldId,
   label,
@@ -262,7 +313,10 @@ export default function ApplyDetailPage() {
 
     for (const f of activeFields) {
       if (f.required && !values[f.id]?.trim()) {
-        const hint = f.type === 'image' ? 'Bitte lade ein Bild hoch für' : 'Bitte fülle das Pflichtfeld aus:'
+        const hint =
+          f.type === 'image' ? 'Bitte lade ein Bild hoch für' :
+          f.type === 'checkbox' ? 'Bitte wähle mindestens eine Option für' :
+          'Bitte fülle das Pflichtfeld aus:'
         setError(`${hint} "${f.label}"`)
         return
       }
@@ -467,6 +521,12 @@ export default function ApplyDetailPage() {
                       <option key={opt} value={opt}>{opt}</option>
                     ))}
                   </ApplySelect>
+                ) : field.type === 'checkbox' ? (
+                  <CheckboxGroupField
+                    field={field}
+                    value={values[field.id] ?? ''}
+                    onChange={(val) => setValue(field.id, val)}
+                  />
                 ) : field.type === 'image' ? (
                   <ImageUploadField
                     fieldId={field.id}

@@ -55,7 +55,7 @@ export async function sendApplicationDecisionWebhook(opts: {
             color: decision === 'accepted' ? 0x22c55e : 0xef4444,
             title: decision === 'accepted' ? '✅ Bewerbung angenommen' : '❌ Bewerbung abgelehnt',
             description: `Die Bewerbung von **${applicantName}** für **${positionTitle}**${gameName ? ` (${gameName})` : ''} wurde **${decision === 'accepted' ? 'angenommen' : 'abgelehnt'}**.`,
-            footer: { text: 'EyStudio Bewerbungssystem' },
+            footer: { text: 'EyStudio Apply System' },
             timestamp: new Date().toISOString(),
           },
         ],

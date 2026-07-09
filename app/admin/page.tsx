@@ -66,7 +66,7 @@ type Tab = 'overview' | 'users' | 'announcements' | 'games' | 'team' | 'position
 interface FormField {
   id: string
   label: string
-  type: 'text' | 'textarea' | 'url' | 'select'
+  type: 'text' | 'textarea' | 'url' | 'select' | 'image'
   placeholder: string
   required: boolean
   options: string[]
@@ -1602,6 +1602,7 @@ function FormEditorPanel({ position, onClose, showToast }: {
                 <option value="text">Text (kurze Eingabe)</option>
                 <option value="url">URL (Link)</option>
                 <option value="select">Auswahl (Dropdown)</option>
+                <option value="image">Bild-Upload (Beweis / Screenshot)</option>
               </AdminSelect>
             </div>
           </div>
@@ -2084,7 +2085,23 @@ function BewerbungenTab({ applications, onRefresh, showToast, highlightedId }: {
                     {app.responses.map((r) => (
                       <div key={r.fieldId}>
                         <p className="text-xs text-rb-light/40 mb-1 font-semibold">{r.label}</p>
-                        {r.value.startsWith('http') ? (
+                        {/\.(jpg|jpeg|png|webp|gif)(\?|$)/i.test(r.value) || r.value.startsWith('/uploads/') ? (
+                          <a href={r.value} target="_blank" rel="noopener noreferrer">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={r.value}
+                              alt={r.label}
+                              style={{
+                                maxWidth: '100%',
+                                maxHeight: '260px',
+                                objectFit: 'contain',
+                                borderRadius: '8px',
+                                border: '1px solid rgba(109,40,217,0.3)',
+                                cursor: 'zoom-in',
+                              }}
+                            />
+                          </a>
+                        ) : r.value.startsWith('http') || r.value.startsWith('/') ? (
                           <a
                             href={r.value}
                             target="_blank"
@@ -2093,13 +2110,15 @@ function BewerbungenTab({ applications, onRefresh, showToast, highlightedId }: {
                           >
                             <ExternalLink size={12} /> {r.value}
                           </a>
-                        ) : (
+                        ) : r.value ? (
                           <div
                             className="rounded-lg p-3"
                             style={{ background: 'rgba(109,40,217,0.06)', border: '1px solid rgba(109,40,217,0.15)' }}
                           >
                             <p className="text-sm text-rb-light/70 leading-relaxed whitespace-pre-wrap">{r.value}</p>
                           </div>
+                        ) : (
+                          <p className="text-xs text-rb-light/25 italic">Keine Angabe</p>
                         )}
                       </div>
                     ))}

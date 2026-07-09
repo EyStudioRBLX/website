@@ -1,11 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSession, signIn } from 'next-auth/react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import Navbar from '@/components/Navbar'
-import { Briefcase, Gamepad2, CheckCircle2, ArrowLeft, Send } from 'lucide-react'
+import { Briefcase, Gamepad2, CheckCircle2, ArrowLeft, Send, ImagePlus, X } from 'lucide-react'
 import type { FormField } from '@/lib/models/Position'
 
 interface Position {
@@ -81,6 +81,125 @@ function ApplySelect(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
   )
 }
 
+function ImageUploadField({
+  fieldId,
+  label,
+  required,
+  value,
+  onChange,
+}: {
+  fieldId: string
+  label: string
+  required: boolean
+  value: string
+  onChange: (url: string) => void
+}) {
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+
+  async function handleFile(file: File) {
+    setUploadError(null)
+    setUploading(true)
+    const fd = new FormData()
+    fd.append('file', file)
+    try {
+      const res = await fetch('/api/upload', { method: 'POST', body: fd })
+      const d = await res.json()
+      if (!res.ok) { setUploadError(d.error ?? 'Upload fehlgeschlagen'); return }
+      onChange(d.url)
+    } catch {
+      setUploadError('Netzwerkfehler beim Upload')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  return (
+    <div>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp,image/gif"
+        style={{ display: 'none' }}
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f) }}
+      />
+      {value ? (
+        <div className="relative inline-block">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={value}
+            alt={label}
+            style={{
+              maxWidth: '100%',
+              maxHeight: '200px',
+              objectFit: 'contain',
+              borderRadius: '8px',
+              border: '1px solid rgba(109,40,217,0.4)',
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => { onChange(''); if (fileRef.current) fileRef.current.value = '' }}
+            style={{
+              position: 'absolute',
+              top: '6px',
+              right: '6px',
+              background: 'rgba(0,0,0,0.65)',
+              border: '1px solid rgba(255,255,255,0.15)',
+              borderRadius: '50%',
+              width: '22px',
+              height: '22px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              color: 'white',
+            }}
+          >
+            <X size={12} />
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          disabled={uploading}
+          style={{
+            width: '100%',
+            border: '2px dashed rgba(109,40,217,0.4)',
+            borderRadius: '8px',
+            padding: '1.5rem',
+            background: 'rgba(109,40,217,0.06)',
+            color: uploading ? 'rgba(196,181,253,0.4)' : '#8b5cf6',
+            cursor: uploading ? 'not-allowed' : 'pointer',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '0.5rem',
+            fontFamily: 'Nunito, sans-serif',
+            fontSize: '0.875rem',
+            transition: 'border-color 0.15s',
+          }}
+        >
+          {uploading ? (
+            <span className="animate-spin inline-block w-5 h-5 border-2 border-rb-purple/30 border-t-rb-purple rounded-full" />
+          ) : (
+            <ImagePlus size={22} />
+          )}
+          {uploading ? 'Wird hochgeladen…' : 'Bild auswählen (JPG, PNG, WebP, GIF – max 5 MB)'}
+        </button>
+      )}
+      {uploadError && (
+        <p className="text-xs mt-1.5" style={{ color: '#ef4444' }}>{uploadError}</p>
+      )}
+      {required && !value && (
+        <p className="text-xs mt-1 text-rb-light/30">Pflichtfeld — Bitte lade ein Bild hoch</p>
+      )}
+    </div>
+  )
+}
+
 const DEFAULT_FIELDS: FormField[] = [
   {
     id: 'motivation',
@@ -143,7 +262,8 @@ export default function ApplyDetailPage() {
 
     for (const f of activeFields) {
       if (f.required && !values[f.id]?.trim()) {
-        setError(`Bitte fülle das Pflichtfeld "${f.label}" aus.`)
+        const hint = f.type === 'image' ? 'Bitte lade ein Bild hoch für' : 'Bitte fülle das Pflichtfeld aus:'
+        setError(`${hint} "${f.label}"`)
         return
       }
     }
@@ -347,6 +467,14 @@ export default function ApplyDetailPage() {
                       <option key={opt} value={opt}>{opt}</option>
                     ))}
                   </ApplySelect>
+                ) : field.type === 'image' ? (
+                  <ImageUploadField
+                    fieldId={field.id}
+                    label={field.label}
+                    required={field.required}
+                    value={values[field.id] ?? ''}
+                    onChange={(url) => setValue(field.id, url)}
+                  />
                 ) : (
                   <ApplyInput
                     type={field.type}

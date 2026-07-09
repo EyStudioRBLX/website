@@ -109,7 +109,7 @@ export default function Team() {
 
         <div className="reveal mt-10 text-center">
           <p className="text-rb-light/30 text-sm mb-4">Wir wachsen — werde Teil von EyStudio!</p>
-          <a href="#contact" className="rb-btn rb-btn-outline inline-flex text-sm px-6 py-2.5">
+          <a href="/apply" className="rb-btn rb-btn-outline inline-flex text-sm px-6 py-2.5">
             Jetzt bewerben →
           </a>
         </div>

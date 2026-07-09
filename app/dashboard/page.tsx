@@ -9,7 +9,7 @@ import { getRoleMeta, type Role } from '@/lib/roles'
 import {
   KeyRound, Star, Gamepad2, Users, Megaphone, Link2, ChevronRight,
   Joystick, Eye, Heart, MessageCircle, Mail, User, Crown, Shield,
-  Map, Settings2, HeartHandshake,
+  Map, Settings2, HeartHandshake, Briefcase,
 } from 'lucide-react'
 
 interface DbUser {
@@ -43,6 +43,15 @@ interface Game {
   robloxUrl: string
 }
 
+interface Position {
+  _id: string
+  title: string
+  description: string
+  requirements: string
+  gameName: string
+  status: 'open' | 'closed'
+}
+
 const QUICK_LINKS = [
   { label: 'Discord Server', Icon: MessageCircle, href: '#', color: '#5865F2' },
   { label: 'Roblox Gruppe', Icon: Gamepad2, href: '#', color: '#e879f9' },
@@ -67,6 +76,7 @@ export default function DashboardPage() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [games, setGames] = useState<Game[]>([])
   const [teamCount, setTeamCount] = useState(0)
+  const [positions, setPositions] = useState<Position[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -80,12 +90,14 @@ export default function DashboardPage() {
       fetch('/api/announcements').then((r) => r.json()),
       fetch('/api/games').then((r) => r.json()),
       fetch('/api/team').then((r) => r.json()),
+      fetch('/api/positions').then((r) => r.json()),
     ])
-      .then(([userData, annData, gameData, teamData]) => {
+      .then(([userData, annData, gameData, teamData, posData]) => {
         if (userData.user) setDbUser(userData.user)
         if (annData.announcements) setAnnouncements(annData.announcements.slice(0, 5))
         if (gameData.games) setGames(gameData.games)
         if (teamData.members) setTeamCount(teamData.members.length)
+        if (posData.positions) setPositions(posData.positions)
       })
       .catch(() => {})
       .finally(() => setLoading(false))
@@ -327,6 +339,41 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
+
+        {/* Open Positions */}
+        {positions.length > 0 && (
+          <div className="rb-panel p-5" style={{ transition: 'none' }}>
+            <h2 className="text-lg text-white mb-4 flex items-center gap-2"
+              style={{ fontFamily: 'Fredoka One, sans-serif' }}>
+              <Briefcase size={18} style={{ color: '#8b5cf6' }} /> Offene Stellen
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {positions.map((p) => (
+                <div key={p._id} className="rounded-xl p-4 flex flex-col"
+                  style={{ background: 'rgba(109,40,217,0.06)', border: '1px solid rgba(109,40,217,0.18)' }}>
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <span className="text-sm text-white font-semibold leading-tight"
+                      style={{ fontFamily: 'Fredoka One' }}>{p.title}</span>
+                    {p.gameName && (
+                      <span className="rb-badge shrink-0"
+                        style={{ background: 'rgba(109,40,217,0.18)', color: '#c4b5fd', border: '1px solid rgba(109,40,217,0.3)', fontSize: '0.58rem' }}>
+                        {p.gameName}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-rb-light/50 leading-relaxed line-clamp-2 flex-1 mb-3">
+                    {p.description}
+                  </p>
+                  <Link href={`/apply/${p._id}`}
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold mt-auto"
+                    style={{ color: '#8b5cf6', fontFamily: 'Fredoka One, sans-serif' }}>
+                    Bewerben <ChevronRight size={13} />
+                  </Link>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </main>
     </div>
   )

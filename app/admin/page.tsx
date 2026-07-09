@@ -11,6 +11,7 @@ import {
   Crown, ArrowLeft, Search, User, Pencil, Trash2,
   Clock, CalendarPlus, ExternalLink, Eye, Heart,
   CheckCircle2, XCircle, Shield, Map, Settings2, HeartHandshake,
+  Briefcase, ClipboardList, ChevronDown, ChevronUp,
 } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -60,7 +61,29 @@ interface TeamMember {
   order: number
 }
 
-type Tab = 'overview' | 'users' | 'announcements' | 'games' | 'team'
+type Tab = 'overview' | 'users' | 'announcements' | 'games' | 'team' | 'positions' | 'applications'
+
+interface Position {
+  _id: string
+  title: string
+  description: string
+  requirements: string
+  gameName: string
+  status: 'open' | 'closed'
+}
+
+interface Application {
+  _id: string
+  positionTitle: string
+  gameName: string
+  discordId: string
+  applicantName: string
+  applicantTag: string
+  message: string
+  portfolio: string
+  status: 'pending' | 'accepted' | 'rejected'
+  appliedAt: string
+}
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
 
@@ -173,10 +196,11 @@ function RoleBadge({ role }: { role: Role }) {
 
 // ─── Overview Tab ─────────────────────────────────────────────────────────────
 
-function OverviewTab({ users, announcements, games }: {
+function OverviewTab({ users, announcements, games, applications }: {
   users: AdminUser[]
   announcements: Announcement[]
   games: Game[]
+  applications: Application[]
 }) {
   const recent = users.slice(0, 5)
   const latestJoin = users[0]
@@ -187,7 +211,7 @@ function OverviewTab({ users, announcements, games }: {
     { label: 'Total Users', value: users.length, icon: <Users size={20} />, color: '#8b5cf6' },
     { label: 'Announcements', value: announcements.length, icon: <Megaphone size={20} />, color: '#22d3ee' },
     { label: 'Games', value: games.length, icon: <Gamepad2 size={20} />, color: '#f59e0b' },
-    { label: 'Latest Join', value: latestJoin, icon: <CalendarPlus size={20} />, color: '#22c55e', isDate: true },
+    { label: 'Bewerbungen', value: applications.length, icon: <ClipboardList size={20} />, color: '#e879f9' },
   ]
 
   return (
@@ -1377,6 +1401,488 @@ function TeamTab({ members, onRefresh, showToast }: {
   )
 }
 
+// ─── Positionen Tab ───────────────────────────────────────────────────────────
+
+interface PositionForm {
+  title: string
+  description: string
+  requirements: string
+  gameName: string
+  status: 'open' | 'closed'
+}
+
+const EMPTY_POS_FORM: PositionForm = {
+  title: '',
+  description: '',
+  requirements: '',
+  gameName: '',
+  status: 'open',
+}
+
+function PositionenTab({ positions, onRefresh, showToast }: {
+  positions: Position[]
+  onRefresh: () => void
+  showToast: (msg: string, type?: 'success' | 'error') => void
+}) {
+  const [formOpen, setFormOpen] = useState(false)
+  const [editId, setEditId] = useState<string | null>(null)
+  const [form, setForm] = useState<PositionForm>(EMPTY_POS_FORM)
+  const [saving, setSaving] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  function openNew() {
+    setEditId(null)
+    setForm(EMPTY_POS_FORM)
+    setFormOpen(true)
+  }
+
+  function openEdit(p: Position) {
+    setEditId(p._id)
+    setForm({
+      title: p.title,
+      description: p.description,
+      requirements: p.requirements,
+      gameName: p.gameName,
+      status: p.status,
+    })
+    setFormOpen(true)
+  }
+
+  function cancelForm() {
+    setFormOpen(false)
+    setEditId(null)
+    setForm(EMPTY_POS_FORM)
+  }
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!form.title.trim() || !form.description.trim()) {
+      showToast('Titel und Beschreibung sind Pflichtfelder', 'error')
+      return
+    }
+    setSaving(true)
+    try {
+      const res = await fetch(editId ? `/api/admin/positions/${editId}` : '/api/admin/positions', {
+        method: editId ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      })
+      if (!res.ok) {
+        const d = await res.json()
+        showToast(d.error ?? 'Fehler beim Speichern', 'error')
+      } else {
+        showToast(editId ? 'Position aktualisiert' : 'Position erstellt')
+        cancelForm()
+        onRefresh()
+      }
+    } catch {
+      showToast('Netzwerkfehler', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function deletePosition(id: string, title: string) {
+    if (!confirm(`Position "${title}" löschen? Alle zugehörigen Bewerbungen werden ebenfalls gelöscht.`)) return
+    setDeletingId(id)
+    try {
+      const res = await fetch(`/api/admin/positions/${id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const d = await res.json()
+        showToast(d.error ?? 'Fehler beim Löschen', 'error')
+      } else {
+        showToast(`"${title}" gelöscht`)
+        onRefresh()
+      }
+    } catch {
+      showToast('Netzwerkfehler', 'error')
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg text-white font-display">
+          Positionen <span className="text-rb-light/30 text-sm font-body">({positions.length})</span>
+        </h2>
+        {!formOpen && (
+          <button onClick={openNew} className="rb-btn text-sm py-2 px-4">
+            + Neue Position
+          </button>
+        )}
+      </div>
+
+      {formOpen && (
+        <div className="rb-panel p-5" style={{ transition: 'none', border: '2px solid rgba(109,40,217,0.5)' }}>
+          <h3 className="text-white font-display mb-4">{editId ? 'Position bearbeiten' : 'Neue Position'}</h3>
+          <form onSubmit={submit} className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-rb-light/60 text-sm mb-1">Titel *</label>
+                <AdminInput
+                  placeholder="z.B. Lead Scripter"
+                  value={form.title}
+                  onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-rb-light/60 text-sm mb-1">Spiel (optional)</label>
+                <AdminInput
+                  placeholder="Void Conquest…"
+                  value={form.gameName}
+                  onChange={(e) => setForm((f) => ({ ...f, gameName: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-rb-light/60 text-sm mb-1">Beschreibung *</label>
+              <AdminTextarea
+                placeholder="Was macht diese Rolle aus? Was wird erwartet?"
+                value={form.description}
+                onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-rb-light/60 text-sm mb-1">Anforderungen</label>
+              <AdminTextarea
+                placeholder="Welche Erfahrungen / Skills werden benötigt?"
+                value={form.requirements}
+                onChange={(e) => setForm((f) => ({ ...f, requirements: e.target.value }))}
+                style={{ minHeight: '70px' }}
+              />
+            </div>
+            <div>
+              <label className="block text-rb-light/60 text-sm mb-1">Status</label>
+              <AdminSelect
+                value={form.status}
+                onChange={(e) => setForm((f) => ({ ...f, status: e.target.value as 'open' | 'closed' }))}
+              >
+                <option value="open">Offen</option>
+                <option value="closed">Geschlossen</option>
+              </AdminSelect>
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button type="submit" disabled={saving} className="rb-btn text-sm py-2 px-5">
+                {saving ? 'Speichern…' : editId ? 'Änderungen speichern' : 'Erstellen'}
+              </button>
+              <button type="button" onClick={cancelForm}
+                className="rb-btn-outline text-sm py-2 px-4"
+                style={{ fontFamily: 'Fredoka One, sans-serif', display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}>
+                Abbrechen
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {positions.length === 0 ? (
+        <div className="rb-panel p-8 text-center text-rb-light/30" style={{ transition: 'none' }}>
+          Noch keine Positionen. Erstelle die erste Position!
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {positions.map((p) => {
+            const isDeleting = deletingId === p._id
+            return (
+              <div
+                key={p._id}
+                className="rb-panel p-4"
+                style={{
+                  transition: 'none',
+                  opacity: isDeleting ? 0.5 : 1,
+                  borderLeft: `3px solid ${p.status === 'open' ? '#22c55e' : '#6b7280'}`,
+                }}
+              >
+                <div className="flex items-start justify-between gap-3 flex-wrap">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <span className="text-white font-semibold">{p.title}</span>
+                      {p.gameName && (
+                        <span className="rb-badge" style={{ background: 'rgba(109,40,217,0.15)', color: '#c4b5fd', border: '1px solid rgba(109,40,217,0.3)', fontSize: '0.62rem' }}>
+                          {p.gameName}
+                        </span>
+                      )}
+                      <span
+                        className="rb-badge"
+                        style={{
+                          background: p.status === 'open' ? 'rgba(34,197,94,0.12)' : 'rgba(107,114,128,0.12)',
+                          color: p.status === 'open' ? '#22c55e' : '#9ca3af',
+                          border: `1px solid ${p.status === 'open' ? 'rgba(34,197,94,0.3)' : 'rgba(107,114,128,0.3)'}`,
+                          fontSize: '0.6rem',
+                        }}
+                      >
+                        {p.status === 'open' ? 'OFFEN' : 'GESCHLOSSEN'}
+                      </span>
+                    </div>
+                    <p className="text-sm text-rb-light/55 line-clamp-2">{p.description}</p>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <button
+                      onClick={() => openEdit(p)}
+                      disabled={isDeleting}
+                      className="rb-btn-outline text-xs px-3 py-1.5 rounded-lg"
+                      style={{ fontFamily: 'Fredoka One, sans-serif', display: 'inline-flex', alignItems: 'center', gap: '0.3rem', cursor: 'pointer', fontSize: '0.75rem' }}
+                    >
+                      <Pencil size={13} /> Bearbeiten
+                    </button>
+                    <button
+                      onClick={() => deletePosition(p._id, p.title)}
+                      disabled={isDeleting}
+                      className="text-xs px-3 py-1.5 rounded-lg"
+                      style={{
+                        background: 'rgba(239,68,68,0.08)',
+                        border: '1px solid rgba(239,68,68,0.35)',
+                        color: '#ef4444',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.3rem',
+                        cursor: isDeleting ? 'not-allowed' : 'pointer',
+                        fontFamily: 'Fredoka One, sans-serif',
+                        fontSize: '0.75rem',
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      <Trash2 size={13} /> Löschen
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Bewerbungen Tab ──────────────────────────────────────────────────────────
+
+type AppFilter = 'all' | 'pending' | 'accepted' | 'rejected'
+
+function BewerbungenTab({ applications, onRefresh, showToast, highlightedId }: {
+  applications: Application[]
+  onRefresh: () => void
+  showToast: (msg: string, type?: 'success' | 'error') => void
+  highlightedId: string | null
+}) {
+  const [filter, setFilter] = useState<AppFilter>('all')
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [loadingId, setLoadingId] = useState<string | null>(null)
+  const highlightRef = useRef<HTMLDivElement | null>(null)
+
+  const filtered = applications.filter((a) => filter === 'all' || a.status === filter)
+
+  useEffect(() => {
+    if (highlightedId && highlightRef.current) {
+      highlightRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  }, [highlightedId, applications])
+
+  async function decide(id: string, status: 'accepted' | 'rejected') {
+    setLoadingId(id)
+    try {
+      const res = await fetch(`/api/admin/applications/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      })
+      if (!res.ok) {
+        const d = await res.json()
+        showToast(d.error ?? 'Fehler', 'error')
+      } else {
+        showToast(status === 'accepted' ? 'Bewerbung angenommen ✅' : 'Bewerbung abgelehnt ❌')
+        onRefresh()
+      }
+    } catch {
+      showToast('Netzwerkfehler', 'error')
+    } finally {
+      setLoadingId(null)
+    }
+  }
+
+  const filterBtns: { id: AppFilter; label: string }[] = [
+    { id: 'all', label: `Alle (${applications.length})` },
+    { id: 'pending', label: `Ausstehend (${applications.filter((a) => a.status === 'pending').length})` },
+    { id: 'accepted', label: `Angenommen (${applications.filter((a) => a.status === 'accepted').length})` },
+    { id: 'rejected', label: `Abgelehnt (${applications.filter((a) => a.status === 'rejected').length})` },
+  ]
+
+  const statusColors: Record<Application['status'], string> = {
+    pending: '#f59e0b',
+    accepted: '#22c55e',
+    rejected: '#ef4444',
+  }
+
+  const statusLabels: Record<Application['status'], string> = {
+    pending: 'Ausstehend',
+    accepted: 'Angenommen',
+    rejected: 'Abgelehnt',
+  }
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-lg text-white font-display">
+        Bewerbungen <span className="text-rb-light/30 text-sm font-body">({applications.length})</span>
+      </h2>
+
+      {/* Filter buttons */}
+      <div className="flex flex-wrap gap-2">
+        {filterBtns.map((btn) => (
+          <button
+            key={btn.id}
+            onClick={() => setFilter(btn.id)}
+            className="text-xs px-3 py-1.5 rounded-lg transition-all"
+            style={{
+              background: filter === btn.id ? 'rgba(109,40,217,0.3)' : 'rgba(109,40,217,0.08)',
+              border: `1px solid ${filter === btn.id ? 'rgba(109,40,217,0.6)' : 'rgba(109,40,217,0.2)'}`,
+              color: filter === btn.id ? '#c4b5fd' : 'rgba(196,181,253,0.45)',
+              cursor: 'pointer',
+              fontFamily: 'Fredoka One, sans-serif',
+            }}
+          >
+            {btn.label}
+          </button>
+        ))}
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="rb-panel p-8 text-center text-rb-light/30" style={{ transition: 'none' }}>
+          Keine Bewerbungen in dieser Kategorie.
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filtered.map((app) => {
+            const isHighlighted = app._id === highlightedId
+            const isExpanded = expandedId === app._id
+            const isLoading = loadingId === app._id
+            const statusColor = statusColors[app.status]
+
+            return (
+              <div
+                key={app._id}
+                ref={isHighlighted ? highlightRef : null}
+                className="rb-panel p-4"
+                style={{
+                  transition: 'box-shadow 0.3s',
+                  opacity: isLoading ? 0.6 : 1,
+                  borderLeft: `3px solid ${statusColor}`,
+                  boxShadow: isHighlighted ? `0 0 0 2px ${statusColor}50, 0 0 20px ${statusColor}20` : undefined,
+                }}
+              >
+                {/* Header row */}
+                <div className="flex items-start justify-between gap-3 flex-wrap mb-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                      <span className="text-white font-semibold">{app.applicantName}</span>
+                      <span className="font-mono text-xs text-rb-light/35">{app.discordId}</span>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap text-xs text-rb-light/50">
+                      <span>Bewirbt sich für: <span className="text-rb-light/70 font-medium">{app.positionTitle}</span></span>
+                      {app.gameName && (
+                        <span className="rb-badge" style={{ background: 'rgba(109,40,217,0.12)', color: '#c4b5fd', border: '1px solid rgba(109,40,217,0.25)', fontSize: '0.6rem' }}>
+                          {app.gameName}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span
+                      className="rb-badge"
+                      style={{ background: `${statusColor}15`, color: statusColor, border: `1px solid ${statusColor}35`, fontSize: '0.65rem' }}
+                    >
+                      {statusLabels[app.status]}
+                    </span>
+                    <span className="text-xs text-rb-light/30">
+                      {new Date(app.appliedAt).toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Toggle message */}
+                <button
+                  onClick={() => setExpandedId(isExpanded ? null : app._id)}
+                  className="flex items-center gap-1.5 text-xs text-rb-light/40 hover:text-rb-light/70 transition-colors mb-2"
+                  style={{ cursor: 'pointer', background: 'none', border: 'none', padding: 0 }}
+                >
+                  {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                  Motivation {isExpanded ? 'ausblenden' : 'anzeigen'}
+                </button>
+
+                {isExpanded && (
+                  <div className="space-y-2 mb-3">
+                    <div
+                      className="rounded-lg p-3"
+                      style={{ background: 'rgba(109,40,217,0.06)', border: '1px solid rgba(109,40,217,0.15)' }}
+                    >
+                      <p className="text-sm text-rb-light/70 leading-relaxed whitespace-pre-wrap">{app.message}</p>
+                    </div>
+                    {app.portfolio && (
+                      <a
+                        href={app.portfolio}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-xs text-rb-cyan/60 hover:text-rb-cyan transition-colors"
+                      >
+                        <ExternalLink size={12} /> Portfolio ansehen
+                      </a>
+                    )}
+                  </div>
+                )}
+
+                {/* Action buttons — only if pending */}
+                {app.status === 'pending' && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => decide(app._id, 'accepted')}
+                      disabled={isLoading}
+                      className="text-xs px-4 py-1.5 rounded-lg"
+                      style={{
+                        background: 'rgba(34,197,94,0.1)',
+                        border: '1px solid rgba(34,197,94,0.35)',
+                        color: '#22c55e',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.3rem',
+                        cursor: isLoading ? 'not-allowed' : 'pointer',
+                        fontFamily: 'Fredoka One, sans-serif',
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      <CheckCircle2 size={13} /> Annehmen
+                    </button>
+                    <button
+                      onClick={() => decide(app._id, 'rejected')}
+                      disabled={isLoading}
+                      className="text-xs px-4 py-1.5 rounded-lg"
+                      style={{
+                        background: 'rgba(239,68,68,0.08)',
+                        border: '1px solid rgba(239,68,68,0.35)',
+                        color: '#ef4444',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.3rem',
+                        cursor: isLoading ? 'not-allowed' : 'pointer',
+                        fontFamily: 'Fredoka One, sans-serif',
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      <XCircle size={13} /> Ablehnen
+                    </button>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Sidebar Nav ──────────────────────────────────────────────────────────────
 
 interface NavItem {
@@ -1391,6 +1897,8 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'announcements', label: 'Announcements', icon: <Megaphone size={18} /> },
   { id: 'games', label: 'Games', icon: <Gamepad2 size={18} /> },
   { id: 'team', label: 'Team', icon: <Code2 size={18} /> },
+  { id: 'positions', label: 'Positionen', icon: <Briefcase size={18} /> },
+  { id: 'applications', label: 'Bewerbungen', icon: <ClipboardList size={18} /> },
 ]
 
 // ─── Main Admin Page ──────────────────────────────────────────────────────────
@@ -1407,6 +1915,9 @@ export default function AdminPage() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [games, setGames] = useState<Game[]>([])
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
+  const [positions, setPositions] = useState<Position[]>([])
+  const [applications, setApplications] = useState<Application[]>([])
+  const [highlightedApplicationId, setHighlightedApplicationId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   const user = session?.user as any
@@ -1418,19 +1929,33 @@ export default function AdminPage() {
     if (status === 'authenticated' && user?.role !== 'founder') router.push('/')
   }, [status, user, router])
 
+  // Handle ?bewerbung=ID URL param
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const bewerbungId = params.get('bewerbung')
+    if (bewerbungId) {
+      setActiveTab('applications')
+      setHighlightedApplicationId(bewerbungId)
+    }
+  }, [])
+
   const fetchAll = useCallback(async () => {
     setLoading(true)
     try {
-      const [uRes, aRes, gRes, tRes] = await Promise.all([
+      const [uRes, aRes, gRes, tRes, pRes, appRes] = await Promise.all([
         fetch('/api/admin/users'),
         fetch('/api/admin/announcements'),
         fetch('/api/admin/games'),
         fetch('/api/admin/team'),
+        fetch('/api/admin/positions'),
+        fetch('/api/admin/applications'),
       ])
       if (uRes.ok) { const d = await uRes.json(); setUsers(d.users ?? []) }
       if (aRes.ok) { const d = await aRes.json(); setAnnouncements(d.announcements ?? []) }
       if (gRes.ok) { const d = await gRes.json(); setGames(d.games ?? []) }
       if (tRes.ok) { const d = await tRes.json(); setTeamMembers(d.members ?? []) }
+      if (pRes.ok) { const d = await pRes.json(); setPositions(d.positions ?? []) }
+      if (appRes.ok) { const d = await appRes.json(); setApplications(d.applications ?? []) }
     } catch {
       showToast('Failed to load data', 'error')
     } finally {
@@ -1585,7 +2110,7 @@ export default function AdminPage() {
           ) : (
             <>
               {activeTab === 'overview' && (
-                <OverviewTab users={users} announcements={announcements} games={games} />
+                <OverviewTab users={users} announcements={announcements} games={games} applications={applications} />
               )}
               {activeTab === 'users' && (
                 <UsersTab
@@ -1615,6 +2140,21 @@ export default function AdminPage() {
                   members={teamMembers}
                   onRefresh={fetchAll}
                   showToast={showToast}
+                />
+              )}
+              {activeTab === 'positions' && (
+                <PositionenTab
+                  positions={positions}
+                  onRefresh={fetchAll}
+                  showToast={showToast}
+                />
+              )}
+              {activeTab === 'applications' && (
+                <BewerbungenTab
+                  applications={applications}
+                  onRefresh={fetchAll}
+                  showToast={showToast}
+                  highlightedId={highlightedApplicationId}
                 />
               )}
             </>

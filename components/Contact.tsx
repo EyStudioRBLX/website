@@ -1,0 +1,174 @@
+'use client'
+
+import { useEffect, useRef, useState } from 'react'
+import { signIn, useSession } from 'next-auth/react'
+
+export default function Contact() {
+  const { data: session } = useSession()
+  const ref = useRef<HTMLDivElement>(null)
+  const [form, setForm] = useState({ name: '', email: '', subject: '', message: '' })
+  const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
+
+  useEffect(() => {
+    const obs = new IntersectionObserver(
+      (es) => es.forEach((e) => e.isIntersecting && e.target.classList.add('visible')),
+      { threshold: 0.08 }
+    )
+    ref.current?.querySelectorAll('.reveal').forEach((el) => obs.observe(el))
+    return () => obs.disconnect()
+  }, [])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setStatus('sending')
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      })
+      if (res.ok) {
+        setStatus('sent')
+        setForm({ name: '', email: '', subject: '', message: '' })
+      } else {
+        setStatus('error')
+      }
+    } catch {
+      setStatus('error')
+    }
+  }
+
+  const inputClass = "w-full bg-rb-panel/60 border-2 border-rb-border/50 rounded-xl px-4 py-3 text-sm text-white placeholder-rb-light/25 focus:outline-none focus:border-rb-purple/60 transition-colors"
+
+  return (
+    <section id="contact" ref={ref} className="py-28 px-6 relative">
+      <div className="absolute inset-x-0 top-0 h-px"
+        style={{ background: 'linear-gradient(90deg, transparent, rgba(34,211,238,0.25), transparent)' }} />
+
+      <div className="max-w-5xl mx-auto">
+        <div className="reveal mb-12 text-center">
+          <div className="inline-flex items-center gap-2 mb-3 px-3 py-1.5 rounded-lg text-xs font-bold tracking-widest uppercase"
+            style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', color: '#f59e0b' }}>
+            ✉️ Schreib uns
+          </div>
+          <h2 className="text-5xl md:text-6xl text-white" style={{ fontFamily: 'Fredoka One, sans-serif' }}>
+            Kontakt <span className="gradient-text">aufnehmen</span>
+          </h2>
+          <p className="text-rb-light/40 text-sm mt-3 max-w-sm mx-auto leading-relaxed">
+            Projekt-Anfragen, Kollaborationen oder einfach Hallo — wir freuen uns!
+          </p>
+        </div>
+
+        <div className="reveal grid grid-cols-1 md:grid-cols-5 gap-6">
+          {/* Info panel */}
+          <div className="md:col-span-2 space-y-4">
+            {/* Discord card */}
+            <div className="rb-panel p-5">
+              <h3 className="text-white font-bold mb-1 flex items-center gap-2"
+                style={{ fontFamily: 'Fredoka One, sans-serif' }}>
+                <span style={{ color: '#5865F2' }}>💬</span> Discord
+              </h3>
+              <p className="text-rb-light/40 text-xs leading-relaxed mb-4">
+                Der schnellste Weg — tritt unserem Server bei!
+              </p>
+              {session ? (
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="w-2 h-2 rounded-full bg-rb-green animate-pulse" />
+                  <span className="text-rb-light/50">Eingeloggt als </span>
+                  <span className="text-white font-semibold">{session.user?.name}</span>
+                </div>
+              ) : (
+                <button onClick={() => signIn('discord')}
+                  className="rb-btn w-full justify-center text-sm py-2.5"
+                  style={{ background: 'linear-gradient(180deg, #5c68f0, #4752c4)', boxShadow: '0 4px 0 #2d3699' }}>
+                  <DiscordIcon className="w-4 h-4" /> Mit Discord einloggen
+                </button>
+              )}
+            </div>
+
+            {/* Info list */}
+            <div className="rb-panel p-5">
+              <h3 className="text-white font-bold mb-3" style={{ fontFamily: 'Fredoka One, sans-serif' }}>ℹ️ Quick Info</h3>
+              <div className="space-y-2.5">
+                {[
+                  ['⚡ Antwortzeit', '< 24 Std.'],
+                  ['🌍 Sprachen',    'DE · EN'],
+                  ['💼 Projekte',    'Alle Größen'],
+                  ['📍 Standort',    'Deutschland & EU'],
+                ].map(([k, v]) => (
+                  <div key={k} className="flex justify-between items-center text-xs">
+                    <span className="text-rb-light/40">{k}</span>
+                    <span className="text-rb-light/80 font-semibold">{v}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Form */}
+          <div className="md:col-span-3 rb-panel p-6">
+            {status === 'sent' ? (
+              <div className="h-full min-h-[280px] flex flex-col items-center justify-center gap-4 text-center">
+                <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl"
+                  style={{ background: 'rgba(34,197,94,0.12)', border: '2px solid rgba(34,197,94,0.3)', boxShadow: '0 4px 0 rgba(34,197,94,0.1)' }}>
+                  ✅
+                </div>
+                <div>
+                  <h3 className="text-xl text-white mb-1" style={{ fontFamily: 'Fredoka One, sans-serif' }}>Gesendet!</h3>
+                  <p className="text-rb-light/40 text-sm">Wir melden uns bald. Versprochen!</p>
+                </div>
+                <button onClick={() => setStatus('idle')} className="rb-btn rb-btn-outline text-sm px-5 py-2">
+                  Neue Nachricht
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-rb-light/40 text-xs font-semibold tracking-widest uppercase block mb-1.5">Name</label>
+                    <input type="text" required placeholder="Dein Name"
+                      value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
+                      className={inputClass} />
+                  </div>
+                  <div>
+                    <label className="text-rb-light/40 text-xs font-semibold tracking-widest uppercase block mb-1.5">E-Mail</label>
+                    <input type="email" required placeholder="deine@email.de"
+                      value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
+                      className={inputClass} />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-rb-light/40 text-xs font-semibold tracking-widest uppercase block mb-1.5">Betreff</label>
+                  <input type="text" required placeholder="Worum geht es?"
+                    value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })}
+                    className={inputClass} />
+                </div>
+                <div>
+                  <label className="text-rb-light/40 text-xs font-semibold tracking-widest uppercase block mb-1.5">Nachricht</label>
+                  <textarea required rows={5} placeholder="Beschreibe dein Projekt..."
+                    value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })}
+                    className={`${inputClass} resize-none`} />
+                </div>
+                {status === 'error' && (
+                  <p className="text-red-400 text-xs">Fehler beim Senden. Bitte versuche es erneut.</p>
+                )}
+                <button type="submit" disabled={status === 'sending'}
+                  className="rb-btn w-full py-3.5 text-sm disabled:opacity-60 disabled:cursor-not-allowed">
+                  {status === 'sending' ? '⏳ Wird gesendet...' : '🚀 Nachricht senden'}
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function DiscordIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z" />
+    </svg>
+  )
+}

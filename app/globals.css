@@ -1,0 +1,238 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;500;600;700;800&family=Share+Tech+Mono&display=swap');
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background-color: #08010f;
+  color: #e9d5ff;
+  font-family: 'Nunito', sans-serif;
+  overflow-x: hidden;
+}
+
+/* ─── Scrollbar ──────────────────────────────── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #0d0118; }
+::-webkit-scrollbar-thumb { background: #6d28d9; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #8b5cf6; }
+
+/* ─── Noise overlay ──────────────────────────── */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 9998;
+  opacity: 0.35;
+}
+
+/* ─── Scanline ───────────────────────────────── */
+.scanline {
+  position: fixed;
+  left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent 0%, rgba(139,92,246,0.25) 50%, transparent 100%);
+  animation: scanline 6s linear infinite;
+  pointer-events: none;
+  z-index: 100;
+}
+@keyframes scanline {
+  0%   { top: -5%; }
+  100% { top: 105%; }
+}
+
+/* ─── Roblox Panel ───────────────────────────── */
+.rb-panel {
+  background: rgba(20, 0, 37, 0.85);
+  border: 2px solid rgba(109, 40, 217, 0.35);
+  border-top-color: rgba(167, 139, 250, 0.2);
+  border-left-color: rgba(167, 139, 250, 0.15);
+  border-radius: 12px;
+  box-shadow: 0 0 0 1px rgba(109,40,217,0.1), inset 0 1px 0 rgba(167,139,250,0.08);
+  backdrop-filter: blur(10px);
+  transition: all 0.25s ease;
+}
+
+.rb-panel:hover {
+  border-color: rgba(139, 92, 246, 0.55);
+  box-shadow: 0 0 25px rgba(109,40,217,0.2), 0 0 0 1px rgba(139,92,246,0.2), inset 0 1px 0 rgba(167,139,250,0.1);
+  transform: translateY(-3px);
+}
+
+/* ─── Roblox Button ──────────────────────────── */
+.rb-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1.5rem;
+  border-radius: 10px;
+  font-family: 'Fredoka One', sans-serif;
+  font-size: 1rem;
+  letter-spacing: 0.03em;
+  color: white;
+  background: linear-gradient(180deg, #7c3aed 0%, #6d28d9 100%);
+  box-shadow: 0 4px 0 #3b0080, 0 0 20px rgba(109,40,217,0.25);
+  border: 1px solid rgba(167,139,250,0.2);
+  border-top-color: rgba(167,139,250,0.4);
+  cursor: pointer;
+  transition: all 0.12s ease;
+  position: relative;
+}
+.rb-btn:hover {
+  background: linear-gradient(180deg, #8b5cf6 0%, #7c3aed 100%);
+  box-shadow: 0 5px 0 #3b0080, 0 0 28px rgba(139,92,246,0.4);
+  transform: translateY(-1px);
+}
+.rb-btn:active {
+  box-shadow: 0 2px 0 #3b0080;
+  transform: translateY(2px);
+}
+
+.rb-btn-gold {
+  background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%);
+  box-shadow: 0 4px 0 #92400e, 0 0 20px rgba(245,158,11,0.3);
+  border-top-color: rgba(252,211,77,0.5);
+}
+.rb-btn-gold:hover {
+  background: linear-gradient(180deg, #fbbf24 0%, #f59e0b 100%);
+  box-shadow: 0 5px 0 #92400e, 0 0 28px rgba(245,158,11,0.4);
+}
+.rb-btn-gold:active {
+  box-shadow: 0 2px 0 #92400e;
+  transform: translateY(2px);
+}
+
+.rb-btn-outline {
+  background: rgba(109,40,217,0.1);
+  box-shadow: none;
+  border: 2px solid rgba(109,40,217,0.5);
+}
+.rb-btn-outline:hover {
+  background: rgba(109,40,217,0.2);
+  border-color: rgba(139,92,246,0.7);
+  box-shadow: 0 0 20px rgba(109,40,217,0.2);
+  transform: translateY(-1px);
+}
+.rb-btn-outline:active {
+  transform: translateY(1px);
+}
+
+/* ─── Badge ──────────────────────────────────── */
+.rb-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.7rem;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* ─── XP Bar ─────────────────────────────────── */
+.xp-bar-track {
+  width: 100%;
+  height: 8px;
+  background: rgba(109,40,217,0.15);
+  border-radius: 4px;
+  border: 1px solid rgba(109,40,217,0.2);
+  overflow: hidden;
+}
+.xp-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #6d28d9, #22d3ee);
+  box-shadow: 0 0 10px rgba(34,211,238,0.5);
+  animation: xpFill 1.5s ease-out forwards;
+}
+@keyframes xpFill {
+  from { width: 0%; }
+}
+
+/* ─── Stat card ──────────────────────────────── */
+.stat-value {
+  font-family: 'Fredoka One', sans-serif;
+  font-size: 2rem;
+  line-height: 1;
+}
+
+/* ─── Gradient text ──────────────────────────── */
+.gradient-text {
+  background: linear-gradient(135deg, #c4b5fd 0%, #22d3ee 45%, #e879f9 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  background-size: 200%;
+  animation: shimmer 4s linear infinite;
+}
+@keyframes shimmer {
+  0%   { background-position: 0% center; }
+  100% { background-position: 200% center; }
+}
+
+/* ─── Section reveal ─────────────────────────── */
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+.reveal.visible {
+  opacity: 1;
+  transform: none;
+}
+
+/* ─── Pixel border ───────────────────────────── */
+.pixel-border {
+  box-shadow:
+    0 0 0 2px #6d28d9,
+    4px 4px 0 0 #3b0080;
+}
+
+/* ─── Float ──────────────────────────────────── */
+@keyframes float {
+  0%,100% { transform: translateY(0); }
+  50%      { transform: translateY(-10px); }
+}
+.animate-float { animation: float 5s ease-in-out infinite; }
+.animate-float-d1 { animation: float 5s ease-in-out 1s infinite; }
+.animate-float-d2 { animation: float 5s ease-in-out 2s infinite; }
+
+/* ─── Hex background ─────────────────────────── */
+.hex-bg {
+  background-image:
+    repeating-linear-gradient(0deg, transparent, transparent 29px, rgba(109,40,217,0.06) 30px),
+    repeating-linear-gradient(60deg, transparent, transparent 29px, rgba(109,40,217,0.04) 30px),
+    repeating-linear-gradient(120deg, transparent, transparent 29px, rgba(109,40,217,0.04) 30px);
+}
+
+/* ─── Dashboard specific ─────────────────────── */
+.dash-stat-card {
+  background: rgba(20,0,37,0.9);
+  border: 2px solid rgba(109,40,217,0.3);
+  border-top-color: rgba(167,139,250,0.15);
+  border-radius: 14px;
+  padding: 1.25rem 1.5rem;
+  box-shadow: inset 0 1px 0 rgba(167,139,250,0.07);
+}
+
+.dash-activity-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  background: rgba(109,40,217,0.06);
+  border: 1px solid rgba(109,40,217,0.15);
+  transition: background 0.2s;
+}
+.dash-activity-item:hover {
+  background: rgba(109,40,217,0.12);
+}

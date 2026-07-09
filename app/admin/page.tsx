@@ -42,7 +42,19 @@ interface Game {
   robloxUrl: string
 }
 
-type Tab = 'overview' | 'users' | 'announcements' | 'games'
+interface TeamMember {
+  _id: string
+  initials: string
+  name: string
+  role: string
+  bio: string
+  color: string
+  badge: string
+  level: number
+  order: number
+}
+
+type Tab = 'overview' | 'users' | 'announcements' | 'games' | 'team'
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
 
@@ -1025,6 +1037,331 @@ function GamesTab({ games, onRefresh, showToast }: {
   )
 }
 
+// ─── Team Tab ────────────────────────────────────────────────────────────────
+
+interface TeamForm {
+  initials: string
+  name: string
+  role: string
+  bio: string
+  color: string
+  badge: string
+  level: number
+  order: number
+}
+
+const EMPTY_TEAM_FORM: TeamForm = {
+  initials: '',
+  name: '',
+  role: '',
+  bio: '',
+  color: '#8b5cf6',
+  badge: '👤 Member',
+  level: 1,
+  order: 0,
+}
+
+function TeamTab({ members, onRefresh, showToast }: {
+  members: TeamMember[]
+  onRefresh: () => void
+  showToast: (msg: string, type?: 'success' | 'error') => void
+}) {
+  const [formOpen, setFormOpen] = useState(false)
+  const [editId, setEditId] = useState<string | null>(null)
+  const [form, setForm] = useState<TeamForm>(EMPTY_TEAM_FORM)
+  const [saving, setSaving] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  function openNew() {
+    setEditId(null)
+    setForm(EMPTY_TEAM_FORM)
+    setFormOpen(true)
+  }
+
+  function openEdit(m: TeamMember) {
+    setEditId(m._id)
+    setForm({ initials: m.initials, name: m.name, role: m.role, bio: m.bio, color: m.color, badge: m.badge, level: m.level, order: m.order })
+    setFormOpen(true)
+  }
+
+  function cancelForm() {
+    setFormOpen(false)
+    setEditId(null)
+    setForm(EMPTY_TEAM_FORM)
+  }
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!form.initials.trim() || !form.name.trim() || !form.role.trim()) {
+      showToast('Initialen, Name und Rolle sind Pflichtfelder', 'error')
+      return
+    }
+    setSaving(true)
+    try {
+      const res = await fetch(editId ? `/api/admin/team/${editId}` : '/api/admin/team', {
+        method: editId ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      })
+      if (!res.ok) {
+        const d = await res.json()
+        showToast(d.error ?? 'Fehler beim Speichern', 'error')
+      } else {
+        showToast(editId ? 'Mitglied aktualisiert' : 'Mitglied hinzugefügt')
+        cancelForm()
+        onRefresh()
+      }
+    } catch {
+      showToast('Netzwerkfehler', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function deleteMember(id: string, name: string) {
+    if (!confirm(`"${name}" wirklich entfernen?`)) return
+    setDeletingId(id)
+    try {
+      const res = await fetch(`/api/admin/team/${id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const d = await res.json()
+        showToast(d.error ?? 'Fehler beim Löschen', 'error')
+      } else {
+        showToast(`${name} entfernt`)
+        onRefresh()
+      }
+    } catch {
+      showToast('Netzwerkfehler', 'error')
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Toolbar */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg text-white font-display">
+          Team <span className="text-rb-light/30 text-sm font-body">({members.length} Mitglieder)</span>
+        </h2>
+        {!formOpen && (
+          <button onClick={openNew} className="rb-btn text-sm py-2 px-4">
+            + Mitglied hinzufügen
+          </button>
+        )}
+      </div>
+
+      {/* Inline form */}
+      {formOpen && (
+        <div className="rb-panel p-5" style={{ transition: 'none', border: '2px solid rgba(109,40,217,0.5)' }}>
+          <h3 className="text-white font-display mb-4">{editId ? 'Mitglied bearbeiten' : 'Neues Mitglied'}</h3>
+          <form onSubmit={submit} className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-rb-light/60 text-sm mb-1">Initialen * (max. 3)</label>
+                <AdminInput
+                  placeholder="EF"
+                  value={form.initials}
+                  maxLength={3}
+                  onChange={(e) => setForm((f) => ({ ...f, initials: e.target.value.toUpperCase() }))}
+                  required
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-rb-light/60 text-sm mb-1">Name *</label>
+                <AdminInput
+                  placeholder="EyFounder"
+                  value={form.name}
+                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                  required
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-rb-light/60 text-sm mb-1">Rolle / Funktion *</label>
+                <AdminInput
+                  placeholder="Lead Scripter"
+                  value={form.role}
+                  onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-rb-light/60 text-sm mb-1">Badge (Emoji + Text)</label>
+                <AdminInput
+                  placeholder="💻 Scripter"
+                  value={form.badge}
+                  onChange={(e) => setForm((f) => ({ ...f, badge: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-rb-light/60 text-sm mb-1">Bio</label>
+              <AdminTextarea
+                placeholder="Kurze Beschreibung des Teammitglieds…"
+                value={form.bio}
+                onChange={(e) => setForm((f) => ({ ...f, bio: e.target.value }))}
+              />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-rb-light/60 text-sm mb-1">Farbe</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={form.color}
+                    onChange={(e) => setForm((f) => ({ ...f, color: e.target.value }))}
+                    style={{ width: '40px', height: '36px', border: 'none', borderRadius: '6px', background: 'transparent', cursor: 'pointer', padding: '2px' }}
+                  />
+                  <AdminInput
+                    value={form.color}
+                    onChange={(e) => setForm((f) => ({ ...f, color: e.target.value }))}
+                    placeholder="#8b5cf6"
+                    style={{ flex: 1 }}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-rb-light/60 text-sm mb-1">
+                  Level: <span style={{ color: form.color }}>{form.level}</span>
+                </label>
+                <input
+                  type="range"
+                  min={1}
+                  max={50}
+                  value={form.level}
+                  onChange={(e) => setForm((f) => ({ ...f, level: Number(e.target.value) }))}
+                  style={{ width: '100%', accentColor: form.color, cursor: 'pointer', marginTop: '0.6rem' }}
+                />
+              </div>
+              <div>
+                <label className="block text-rb-light/60 text-sm mb-1">Reihenfolge</label>
+                <AdminInput
+                  type="number"
+                  min={0}
+                  value={form.order}
+                  onChange={(e) => setForm((f) => ({ ...f, order: Number(e.target.value) }))}
+                  placeholder="0"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button type="submit" disabled={saving} className="rb-btn text-sm py-2 px-5">
+                {saving ? 'Speichern…' : editId ? 'Änderungen speichern' : 'Hinzufügen'}
+              </button>
+              <button type="button" onClick={cancelForm}
+                className="rb-btn-outline text-sm py-2 px-4"
+                style={{ fontFamily: 'Fredoka One, sans-serif', display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}>
+                Abbrechen
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Member cards */}
+      {members.length === 0 ? (
+        <div className="rb-panel p-8 text-center text-rb-light/30" style={{ transition: 'none' }}>
+          Noch keine Teammitglieder. Füge das erste Mitglied hinzu!
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          {members.map((m) => {
+            const isDeleting = deletingId === m._id
+            return (
+              <div
+                key={m._id}
+                className="rb-panel p-4"
+                style={{ transition: 'none', opacity: isDeleting ? 0.5 : 1, borderLeft: `3px solid ${m.color}` }}
+              >
+                <div className="flex items-center gap-3 mb-3">
+                  {/* Avatar preview */}
+                  <div
+                    className="w-12 h-12 rounded-xl flex items-center justify-center text-base font-bold shrink-0"
+                    style={{
+                      background: `radial-gradient(circle at 35% 30%, ${m.color}35, ${m.color}10)`,
+                      border: `2px solid ${m.color}45`,
+                      color: m.color,
+                      fontFamily: 'Fredoka One, sans-serif',
+                    }}
+                  >
+                    {m.initials}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-white font-display truncate">{m.name}</p>
+                    <p className="text-xs truncate" style={{ color: m.color }}>{m.role}</p>
+                  </div>
+                  <span
+                    className="rb-badge ml-auto shrink-0"
+                    style={{ background: `${m.color}15`, color: m.color, border: `1px solid ${m.color}30`, fontSize: '0.6rem' }}
+                  >
+                    Lv.{m.level}
+                  </span>
+                </div>
+
+                <p className="text-xs text-rb-light/40 mb-3 line-clamp-2 leading-relaxed">{m.bio || '—'}</p>
+
+                <div className="mb-3">
+                  <span
+                    className="rb-badge"
+                    style={{ background: `${m.color}10`, color: m.color, border: `1px solid ${m.color}25`, fontSize: '0.65rem' }}
+                  >
+                    {m.badge}
+                  </span>
+                </div>
+
+                {/* XP bar preview */}
+                <div className="xp-bar-track mb-3">
+                  <div
+                    className="xp-bar-fill"
+                    style={{
+                      ['--xp-width' as any]: `${(m.level / 50) * 100}%`,
+                      background: `linear-gradient(90deg, ${m.color}60, ${m.color})`,
+                      boxShadow: `0 0 8px ${m.color}50`,
+                    }}
+                  />
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => openEdit(m)}
+                    disabled={isDeleting}
+                    className="rb-btn-outline text-xs px-3 py-1.5 rounded-lg flex-1"
+                    style={{ fontFamily: 'Fredoka One, sans-serif', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem', cursor: 'pointer', fontSize: '0.75rem' }}
+                  >
+                    ✏️ Bearbeiten
+                  </button>
+                  <button
+                    onClick={() => deleteMember(m._id, m.name)}
+                    disabled={isDeleting}
+                    className="text-xs px-3 py-1.5 rounded-lg flex-1"
+                    style={{
+                      background: 'rgba(239,68,68,0.08)',
+                      border: '1px solid rgba(239,68,68,0.35)',
+                      color: '#ef4444',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.3rem',
+                      cursor: isDeleting ? 'not-allowed' : 'pointer',
+                      fontFamily: 'Fredoka One, sans-serif',
+                      fontSize: '0.75rem',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    🗑 Entfernen
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Sidebar Nav ──────────────────────────────────────────────────────────────
 
 interface NavItem {
@@ -1038,6 +1375,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'users', label: 'Users', icon: '👥' },
   { id: 'announcements', label: 'Announcements', icon: '📢' },
   { id: 'games', label: 'Games', icon: '🎮' },
+  { id: 'team', label: 'Team', icon: '🧑‍💻' },
 ]
 
 // ─── Main Admin Page ──────────────────────────────────────────────────────────
@@ -1053,6 +1391,7 @@ export default function AdminPage() {
   const [users, setUsers] = useState<AdminUser[]>([])
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [games, setGames] = useState<Game[]>([])
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
   const [loading, setLoading] = useState(true)
 
   const user = session?.user as any
@@ -1067,23 +1406,16 @@ export default function AdminPage() {
   const fetchAll = useCallback(async () => {
     setLoading(true)
     try {
-      const [uRes, aRes, gRes] = await Promise.all([
+      const [uRes, aRes, gRes, tRes] = await Promise.all([
         fetch('/api/admin/users'),
         fetch('/api/admin/announcements'),
         fetch('/api/admin/games'),
+        fetch('/api/admin/team'),
       ])
-      if (uRes.ok) {
-        const d = await uRes.json()
-        setUsers(d.users ?? [])
-      }
-      if (aRes.ok) {
-        const d = await aRes.json()
-        setAnnouncements(d.announcements ?? [])
-      }
-      if (gRes.ok) {
-        const d = await gRes.json()
-        setGames(d.games ?? [])
-      }
+      if (uRes.ok) { const d = await uRes.json(); setUsers(d.users ?? []) }
+      if (aRes.ok) { const d = await aRes.json(); setAnnouncements(d.announcements ?? []) }
+      if (gRes.ok) { const d = await gRes.json(); setGames(d.games ?? []) }
+      if (tRes.ok) { const d = await tRes.json(); setTeamMembers(d.members ?? []) }
     } catch {
       showToast('Failed to load data', 'error')
     } finally {
@@ -1257,6 +1589,13 @@ export default function AdminPage() {
               {activeTab === 'games' && (
                 <GamesTab
                   games={games}
+                  onRefresh={fetchAll}
+                  showToast={showToast}
+                />
+              )}
+              {activeTab === 'team' && (
+                <TeamTab
+                  members={teamMembers}
                   onRefresh={fetchAll}
                   showToast={showToast}
                 />

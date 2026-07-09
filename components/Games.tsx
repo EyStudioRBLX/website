@@ -1,61 +1,29 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
-import { Orbit, Zap, Swords, Eye, Heart, Wrench, Joystick } from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Eye, Heart, Wrench, Joystick, Gamepad2 } from 'lucide-react'
 
-const games: {
-  Icon: LucideIcon
-  title: string
-  genre: string
-  description: string
-  status: string
-  statusColor: string
+interface Game {
+  _id: string
+  name: string
+  status: 'Dev' | 'Beta' | 'Live'
   visits: string
-  favorites: string
+  fav: string
+  statusColor: string
   progress: number
-  accent: string
-}[] = [
-  {
-    Icon: Orbit,
-    title: 'Void Conquest',
-    genre: 'Strategy · PvP',
-    description: 'Baue Imperien, forme Allianzen und dominiere das Vakuum zwischen den Sternen. Echtzeit-Strategie auf höchstem Niveau.',
-    status: 'In Entwicklung',
-    statusColor: '#22d3ee',
-    visits: '—',
-    favorites: '—',
-    progress: 35,
-    accent: '#22d3ee',
-  },
-  {
-    Icon: Zap,
-    title: 'Neon Maze Rush',
-    genre: 'Racing · Arcade',
-    description: 'Rase durch prozedural generierte Neon-Labyrinthe. Jede Runde ein neues Level, jede Sekunde Adrenalin.',
-    status: 'Live',
-    statusColor: '#22c55e',
-    visits: '48.2K',
-    favorites: '1.1K',
-    progress: 100,
-    accent: '#e879f9',
-  },
-  {
-    Icon: Swords,
-    title: 'Shadow Dungeon',
-    genre: 'RPG · Adventure',
-    description: 'Erkunde uralte Dungeons, sammle mächtige Artefakte und enthülle die Geheimnisse einer vergessenen Zivilisation.',
-    status: 'Beta',
-    statusColor: '#f59e0b',
-    visits: '8.4K',
-    favorites: '340',
-    progress: 75,
-    accent: '#8b5cf6',
-  },
-]
+  robloxUrl: string
+}
 
 export default function Games() {
   const ref = useRef<HTMLDivElement>(null)
+  const [games, setGames] = useState<Game[]>([])
+
+  useEffect(() => {
+    fetch('/api/games')
+      .then((r) => r.json())
+      .then((d) => { if (d.games) setGames(d.games) })
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     const obs = new IntersectionObserver(
@@ -64,7 +32,7 @@ export default function Games() {
     )
     ref.current?.querySelectorAll('.reveal').forEach((el) => obs.observe(el))
     return () => obs.disconnect()
-  }, [])
+  }, [games])
 
   return (
     <section id="games" ref={ref} className="py-28 px-6 relative">
@@ -89,66 +57,90 @@ export default function Games() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          {games.map((g, i) => (
-            <div key={g.title} className="reveal rb-panel p-0 overflow-hidden group"
-              style={{ transitionDelay: `${i * 80}ms` }}>
-              {/* Top banner */}
-              <div className="relative h-44 flex items-center justify-center overflow-hidden"
-                style={{ background: `radial-gradient(ellipse at 50% 50%, ${g.accent}18 0%, rgba(13,1,24,0.9) 70%)` }}>
-                {/* Grid overlay */}
-                <div className="absolute inset-0 opacity-20" style={{
-                  backgroundImage: 'linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)',
-                  backgroundSize: '20px 20px',
-                }} />
-                <g.Icon size={56} style={{ color: g.accent }} className="group-hover:scale-110 transition-transform duration-300 relative z-10" />
-                {/* Status */}
-                <div className="absolute top-3 right-3 rb-badge font-bold"
-                  style={{ background: `${g.statusColor}15`, color: g.statusColor, border: `1px solid ${g.statusColor}35` }}>
-                  {g.status === 'Live' && <span className="w-1.5 h-1.5 rounded-full inline-block mr-1 animate-pulse" style={{ background: g.statusColor }} />}
-                  {g.status}
-                </div>
-                {/* Progress bar at bottom */}
-                <div className="absolute bottom-0 left-0 right-0 h-1" style={{ background: 'rgba(0,0,0,0.3)' }}>
-                  <div style={{
-                    height: '100%',
-                    width: `${g.progress}%`,
-                    background: `linear-gradient(90deg, ${g.accent}80, ${g.accent})`,
-                    boxShadow: `0 0 8px ${g.accent}80`,
+        {games.length === 0 ? (
+          <div className="reveal text-center py-20 text-rb-light/30">
+            Noch keine Spiele veröffentlicht.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            {games.map((g, i) => (
+              <div key={g._id} className="reveal rb-panel p-0 overflow-hidden group"
+                style={{ transitionDelay: `${i * 80}ms` }}>
+                {/* Top banner */}
+                <div className="relative h-44 flex items-center justify-center overflow-hidden"
+                  style={{ background: `radial-gradient(ellipse at 50% 50%, ${g.statusColor}18 0%, rgba(13,1,24,0.9) 70%)` }}>
+                  <div className="absolute inset-0 opacity-20" style={{
+                    backgroundImage: 'linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)',
+                    backgroundSize: '20px 20px',
                   }} />
-                </div>
-              </div>
-
-              {/* Content */}
-              <div className="p-5">
-                <p className="text-xs font-semibold tracking-widest uppercase mb-1" style={{ color: g.accent, opacity: 0.7 }}>
-                  {g.genre}
-                </p>
-                <h3 className="text-xl text-white mb-2" style={{ fontFamily: 'Fredoka One, sans-serif' }}>
-                  {g.title}
-                </h3>
-                <p className="text-rb-light/50 text-sm leading-relaxed mb-4">{g.description}</p>
-
-                <div className="flex items-center justify-between pt-3"
-                  style={{ borderTop: '1px solid rgba(109,40,217,0.2)' }}>
-                  <div className="flex gap-3 text-xs text-rb-light/40">
-                    <span className="inline-flex items-center gap-1"><Eye size={12} /> <span className="text-rb-light/70 font-semibold">{g.visits}</span></span>
-                    <span className="inline-flex items-center gap-1"><Heart size={12} /> <span className="text-rb-light/70 font-semibold">{g.favorites}</span></span>
-                    <span className="inline-flex items-center gap-1"><Wrench size={12} /> <span style={{ color: g.accent }}>{g.progress}%</span></span>
+                  <Gamepad2
+                    size={56}
+                    style={{ color: g.statusColor }}
+                    className="group-hover:scale-110 transition-transform duration-300 relative z-10"
+                  />
+                  {/* Status badge */}
+                  <div className="absolute top-3 right-3 rb-badge font-bold"
+                    style={{ background: `${g.statusColor}15`, color: g.statusColor, border: `1px solid ${g.statusColor}35` }}>
+                    {g.status === 'Live' && (
+                      <span className="w-1.5 h-1.5 rounded-full inline-block mr-1 animate-pulse"
+                        style={{ background: g.statusColor }} />
+                    )}
+                    {g.status}
                   </div>
-                  <button className="rb-btn text-xs py-1.5 px-3" style={{
-                    fontSize: '0.72rem',
-                    background: `linear-gradient(180deg, ${g.accent}30, ${g.accent}15)`,
-                    boxShadow: `0 3px 0 ${g.accent}20`,
-                    border: `1px solid ${g.accent}40`,
-                  }}>
-                    Mehr →
-                  </button>
+                  {/* Progress bar */}
+                  <div className="absolute bottom-0 left-0 right-0 h-1" style={{ background: 'rgba(0,0,0,0.3)' }}>
+                    <div style={{
+                      height: '100%',
+                      width: `${g.progress}%`,
+                      background: `linear-gradient(90deg, ${g.statusColor}80, ${g.statusColor})`,
+                      boxShadow: `0 0 8px ${g.statusColor}80`,
+                    }} />
+                  </div>
+                </div>
+
+                {/* Content */}
+                <div className="p-5">
+                  <h3 className="text-xl text-white mb-4" style={{ fontFamily: 'Fredoka One, sans-serif' }}>
+                    {g.name}
+                  </h3>
+
+                  <div className="flex items-center justify-between pt-3"
+                    style={{ borderTop: '1px solid rgba(109,40,217,0.2)' }}>
+                    <div className="flex gap-3 text-xs text-rb-light/40">
+                      <span className="inline-flex items-center gap-1">
+                        <Eye size={12} /> <span className="text-rb-light/70 font-semibold">{g.visits}</span>
+                      </span>
+                      <span className="inline-flex items-center gap-1">
+                        <Heart size={12} /> <span className="text-rb-light/70 font-semibold">{g.fav}</span>
+                      </span>
+                      <span className="inline-flex items-center gap-1">
+                        <Wrench size={12} /> <span style={{ color: g.statusColor }}>{g.progress}%</span>
+                      </span>
+                    </div>
+                    {g.robloxUrl ? (
+                      <a
+                        href={g.robloxUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rb-btn text-xs py-1.5 px-3"
+                        style={{
+                          fontSize: '0.72rem',
+                          background: `linear-gradient(180deg, ${g.statusColor}30, ${g.statusColor}15)`,
+                          boxShadow: `0 3px 0 ${g.statusColor}20`,
+                          border: `1px solid ${g.statusColor}40`,
+                        }}
+                      >
+                        Spielen →
+                      </a>
+                    ) : (
+                      <span className="text-xs text-rb-light/25 italic">Bald verfügbar</span>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </section>
   )

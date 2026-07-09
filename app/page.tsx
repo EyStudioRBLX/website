@@ -1,5 +1,6 @@
 import Navbar from '@/components/Navbar'
 import Hero from '@/components/Hero'
+import Announcements from '@/components/Announcements'
 import Games from '@/components/Games'
 import Services from '@/components/Services'
 import Team from '@/components/Team'
@@ -11,6 +12,7 @@ export default function Home() {
     <main className="min-h-screen bg-void">
       <Navbar />
       <Hero />
+      <Announcements />
       <Games />
       <Services />
       <Team />

@@ -26,7 +26,7 @@ export async function sendNewApplicationWebhook(opts: {
                 inline: false,
               },
             ],
-            footer: { text: 'EyStudio Bewerbungssystem' },
+            footer: { text: 'EyStudio Apply System' },
             timestamp: new Date().toISOString(),
           },
         ],

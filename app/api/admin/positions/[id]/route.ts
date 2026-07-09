@@ -18,6 +18,15 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       requirements?: string
       gameName?: string
       status?: 'open' | 'closed'
+      fields?: Array<{
+        id: string
+        label: string
+        type: 'text' | 'textarea' | 'url' | 'select'
+        placeholder: string
+        required: boolean
+        options: string[]
+        order: number
+      }>
     }
 
     const position = await Position.findByIdAndUpdate(
@@ -28,6 +37,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         ...(body.requirements !== undefined && { requirements: body.requirements.trim() }),
         ...(body.gameName !== undefined && { gameName: body.gameName.trim() }),
         ...(body.status !== undefined && { status: body.status }),
+        ...(body.fields !== undefined && { fields: body.fields }),
       },
       { new: true }
     )

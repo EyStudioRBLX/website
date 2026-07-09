@@ -6,6 +6,7 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import Navbar from '@/components/Navbar'
 import { Briefcase, Gamepad2, CheckCircle2, ArrowLeft, Send } from 'lucide-react'
+import type { FormField } from '@/lib/models/Position'
 
 interface Position {
   _id: string
@@ -14,6 +15,7 @@ interface Position {
   requirements: string
   gameName: string
   status: 'open' | 'closed'
+  fields: FormField[]
 }
 
 const inputStyle: React.CSSProperties = {
@@ -28,7 +30,7 @@ const inputStyle: React.CSSProperties = {
   fontSize: '0.875rem',
 }
 
-function ApplyInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
+function ApplyInput(props: React.InputHTMLAttributes<HTMLInputElement> & { focused?: boolean }) {
   const [focused, setFocused] = useState(false)
   return (
     <input
@@ -62,6 +64,44 @@ function ApplyTextarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>)
   )
 }
 
+function ApplySelect(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
+  const [focused, setFocused] = useState(false)
+  return (
+    <select
+      {...props}
+      style={{
+        ...inputStyle,
+        borderColor: focused ? '#8b5cf6' : 'rgba(109,40,217,0.3)',
+        cursor: 'pointer',
+        ...(props.style ?? {}),
+      }}
+      onFocus={(e) => { setFocused(true); props.onFocus?.(e) }}
+      onBlur={(e) => { setFocused(false); props.onBlur?.(e) }}
+    />
+  )
+}
+
+const DEFAULT_FIELDS: FormField[] = [
+  {
+    id: 'motivation',
+    label: 'Deine Bewerbung / Motivation',
+    type: 'textarea',
+    placeholder: 'Erzähl uns von dir, deinen Fähigkeiten und warum du Teil von EyStudio werden möchtest…',
+    required: true,
+    options: [],
+    order: 0,
+  },
+  {
+    id: 'portfolio',
+    label: 'Portfolio / Link',
+    type: 'url',
+    placeholder: 'https://dein-portfolio.de',
+    required: false,
+    options: [],
+    order: 1,
+  },
+]
+
 export default function ApplyDetailPage() {
   const params = useParams()
   const id = params.id as string
@@ -71,20 +111,17 @@ export default function ApplyDetailPage() {
   const [loadingPos, setLoadingPos] = useState(true)
   const [notFound, setNotFound] = useState(false)
 
-  const [message, setMessage] = useState('')
-  const [portfolio, setPortfolio] = useState('')
+  const [values, setValues] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetch('/api/positions')
+    fetch(`/api/positions/${id}`)
       .then((r) => r.json())
       .then((d) => {
-        const positions: Position[] = d.positions ?? []
-        const found = positions.find((p) => p._id === id)
-        if (found) {
-          setPosition(found)
+        if (d.position) {
+          setPosition(d.position)
         } else {
           setNotFound(true)
         }
@@ -93,19 +130,38 @@ export default function ApplyDetailPage() {
       .finally(() => setLoadingPos(false))
   }, [id])
 
+  const activeFields = position
+    ? (position.fields.length > 0 ? [...position.fields].sort((a, b) => a.order - b.order) : DEFAULT_FIELDS)
+    : []
+
+  function setValue(fieldId: string, val: string) {
+    setValues((prev) => ({ ...prev, [fieldId]: val }))
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!message.trim()) {
-      setError('Bitte fülle deine Motivation aus.')
-      return
+
+    for (const f of activeFields) {
+      if (f.required && !values[f.id]?.trim()) {
+        setError(`Bitte fülle das Pflichtfeld "${f.label}" aus.`)
+        return
+      }
     }
+
     setSubmitting(true)
     setError(null)
+
+    const responses = activeFields.map((f) => ({
+      fieldId: f.id,
+      label: f.label,
+      value: values[f.id]?.trim() ?? '',
+    }))
+
     try {
       const res = await fetch('/api/applications', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ positionId: id, message: message.trim(), portfolio: portfolio.trim() }),
+        body: JSON.stringify({ positionId: id, responses }),
       })
       if (res.ok) {
         setSuccess(true)
@@ -120,7 +176,6 @@ export default function ApplyDetailPage() {
     }
   }
 
-  // Loading state
   if (status === 'loading' || loadingPos) {
     return (
       <div className="min-h-screen hex-bg" style={{ background: '#08010f' }}>
@@ -133,8 +188,7 @@ export default function ApplyDetailPage() {
     )
   }
 
-  // Not found
-  if (notFound) {
+  if (notFound || !position || position.status !== 'open') {
     return (
       <div className="min-h-screen hex-bg" style={{ background: '#08010f' }}>
         <Navbar />
@@ -148,16 +202,12 @@ export default function ApplyDetailPage() {
     )
   }
 
-  // Not logged in
   if (status === 'unauthenticated') {
     return (
       <div className="min-h-screen hex-bg" style={{ background: '#08010f' }}>
         <Navbar />
         <div className="max-w-2xl mx-auto px-6 pt-28 pb-16">
-          <div
-            className="rb-panel p-8 text-center"
-            style={{ transition: 'none' }}
-          >
+          <div className="rb-panel p-8 text-center" style={{ transition: 'none' }}>
             <Briefcase size={36} className="mx-auto mb-4" style={{ color: '#8b5cf6' }} />
             <h2 className="text-white text-xl font-display mb-2">Login erforderlich</h2>
             <p className="text-rb-light/50 text-sm mb-6">
@@ -175,7 +225,6 @@ export default function ApplyDetailPage() {
     )
   }
 
-  // Success state
   if (success) {
     return (
       <div className="min-h-screen hex-bg" style={{ background: '#08010f' }}>
@@ -192,7 +241,7 @@ export default function ApplyDetailPage() {
             <CheckCircle2 size={48} className="mx-auto mb-4" style={{ color: '#22c55e' }} />
             <h2 className="text-white text-2xl font-display mb-2">Bewerbung eingereicht!</h2>
             <p className="text-rb-light/50 text-sm mb-2">
-              Deine Bewerbung für <span className="text-white font-semibold">{position?.title}</span> wurde erfolgreich übermittelt.
+              Deine Bewerbung für <span className="text-white font-semibold">{position.title}</span> wurde erfolgreich übermittelt.
             </p>
             <p className="text-rb-light/35 text-xs mb-8">
               Das Team wird sich bei dir melden. Vielen Dank für dein Interesse!
@@ -216,7 +265,6 @@ export default function ApplyDetailPage() {
     <div className="min-h-screen hex-bg" style={{ background: '#08010f' }}>
       <Navbar />
       <main className="max-w-2xl mx-auto px-6 pt-28 pb-16 space-y-5">
-        {/* Back link */}
         <Link
           href="/apply"
           className="inline-flex items-center gap-1.5 text-sm text-rb-light/40 hover:text-rb-light/70 transition-colors"
@@ -224,10 +272,10 @@ export default function ApplyDetailPage() {
           <ArrowLeft size={14} /> Alle Stellen
         </Link>
 
-        {/* Position info panel */}
+        {/* Position info */}
         <div className="rb-panel p-5" style={{ transition: 'none', borderTop: '3px solid #6d28d9' }}>
           <div className="flex items-start justify-between gap-3 mb-3">
-            <h1 className="text-white font-display text-xl">{position?.title}</h1>
+            <h1 className="text-white font-display text-xl">{position.title}</h1>
             <span
               className="rb-badge shrink-0"
               style={{
@@ -241,16 +289,16 @@ export default function ApplyDetailPage() {
             </span>
           </div>
 
-          {position?.gameName && (
+          {position.gameName && (
             <div className="flex items-center gap-1.5 mb-3">
               <Gamepad2 size={13} style={{ color: '#8b5cf6' }} />
               <span className="text-xs text-rb-light/60">{position.gameName}</span>
             </div>
           )}
 
-          <p className="text-sm text-rb-light/60 leading-relaxed mb-4">{position?.description}</p>
+          <p className="text-sm text-rb-light/60 leading-relaxed mb-4">{position.description}</p>
 
-          {position?.requirements && (
+          {position.requirements && (
             <div
               className="rounded-lg p-3"
               style={{ background: 'rgba(109,40,217,0.08)', border: '1px solid rgba(109,40,217,0.2)' }}
@@ -270,30 +318,46 @@ export default function ApplyDetailPage() {
           </h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-rb-light/60 text-sm mb-1.5">
-                Deine Bewerbung / Motivation <span style={{ color: '#ef4444' }}>*</span>
-              </label>
-              <ApplyTextarea
-                placeholder="Erzähl uns von dir, deinen Fähigkeiten und warum du Teil von EyStudio werden möchtest…"
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                required
-                style={{ minHeight: '160px' }}
-              />
-            </div>
-
-            <div>
-              <label className="block text-rb-light/60 text-sm mb-1.5">
-                Portfolio / Link <span className="text-rb-light/30">(optional)</span>
-              </label>
-              <ApplyInput
-                type="url"
-                placeholder="https://dein-portfolio.de"
-                value={portfolio}
-                onChange={(e) => setPortfolio(e.target.value)}
-              />
-            </div>
+            {activeFields.map((field) => (
+              <div key={field.id}>
+                <label className="block text-rb-light/60 text-sm mb-1.5">
+                  {field.label}{' '}
+                  {field.required ? (
+                    <span style={{ color: '#ef4444' }}>*</span>
+                  ) : (
+                    <span className="text-rb-light/30">(optional)</span>
+                  )}
+                </label>
+                {field.type === 'textarea' ? (
+                  <ApplyTextarea
+                    placeholder={field.placeholder}
+                    value={values[field.id] ?? ''}
+                    onChange={(e) => setValue(field.id, e.target.value)}
+                    required={field.required}
+                    style={{ minHeight: '160px' }}
+                  />
+                ) : field.type === 'select' ? (
+                  <ApplySelect
+                    value={values[field.id] ?? ''}
+                    onChange={(e) => setValue(field.id, e.target.value)}
+                    required={field.required}
+                  >
+                    <option value="">— Bitte wählen —</option>
+                    {field.options.map((opt) => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </ApplySelect>
+                ) : (
+                  <ApplyInput
+                    type={field.type}
+                    placeholder={field.placeholder}
+                    value={values[field.id] ?? ''}
+                    onChange={(e) => setValue(field.id, e.target.value)}
+                    required={field.required}
+                  />
+                )}
+              </div>
+            ))}
 
             {/* Applicant info */}
             <div
@@ -310,7 +374,6 @@ export default function ApplyDetailPage() {
               </div>
             </div>
 
-            {/* Error */}
             {error && (
               <div
                 className="rounded-lg p-3 text-sm"

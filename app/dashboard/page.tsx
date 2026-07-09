@@ -9,7 +9,7 @@ import { getRoleMeta, type Role } from '@/lib/roles'
 import {
   KeyRound, Star, Gamepad2, Users, Megaphone, Link2, ChevronRight,
   Joystick, Eye, Heart, MessageCircle, Mail, User, Crown, Shield,
-  Map, Settings2, HeartHandshake, Briefcase,
+  Map, Settings2, HeartHandshake, Briefcase, ClipboardList, Clock,
 } from 'lucide-react'
 
 interface DbUser {
@@ -52,6 +52,15 @@ interface Position {
   status: 'open' | 'closed'
 }
 
+interface MyApplication {
+  _id: string
+  positionTitle: string
+  gameName: string
+  status: 'pending' | 'accepted' | 'rejected'
+  appliedAt: string
+  responses: Array<{ fieldId: string; label: string; value: string }>
+}
+
 const QUICK_LINKS = [
   { label: 'Discord Server', Icon: MessageCircle, href: '#', color: '#5865F2' },
   { label: 'Roblox Gruppe', Icon: Gamepad2, href: '#', color: '#e879f9' },
@@ -77,6 +86,7 @@ export default function DashboardPage() {
   const [games, setGames] = useState<Game[]>([])
   const [teamCount, setTeamCount] = useState(0)
   const [positions, setPositions] = useState<Position[]>([])
+  const [myApplications, setMyApplications] = useState<MyApplication[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -91,13 +101,15 @@ export default function DashboardPage() {
       fetch('/api/games').then((r) => r.json()),
       fetch('/api/team').then((r) => r.json()),
       fetch('/api/positions').then((r) => r.json()),
+      fetch('/api/applications/mine').then((r) => r.json()),
     ])
-      .then(([userData, annData, gameData, teamData, posData]) => {
+      .then(([userData, annData, gameData, teamData, posData, mineData]) => {
         if (userData.user) setDbUser(userData.user)
         if (annData.announcements) setAnnouncements(annData.announcements.slice(0, 5))
         if (gameData.games) setGames(gameData.games)
         if (teamData.members) setTeamCount(teamData.members.length)
         if (posData.positions) setPositions(posData.positions)
+        if (mineData.applications) setMyApplications(mineData.applications)
       })
       .catch(() => {})
       .finally(() => setLoading(false))
@@ -339,6 +351,48 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
+
+        {/* My Applications */}
+        {myApplications.length > 0 && (
+          <div className="rb-panel p-5" style={{ transition: 'none' }}>
+            <h2 className="text-lg text-white mb-4 flex items-center gap-2"
+              style={{ fontFamily: 'Fredoka One, sans-serif' }}>
+              <ClipboardList size={18} style={{ color: '#e879f9' }} /> Meine Bewerbungen
+            </h2>
+            <div className="space-y-3">
+              {myApplications.map((app) => {
+                const statusColor = app.status === 'accepted' ? '#22c55e' : app.status === 'rejected' ? '#ef4444' : '#f59e0b'
+                const statusLabel = app.status === 'accepted' ? 'Angenommen' : app.status === 'rejected' ? 'Abgelehnt' : 'Ausstehend'
+                return (
+                  <div key={app._id} className="rounded-xl p-4"
+                    style={{
+                      background: 'rgba(109,40,217,0.06)',
+                      border: '1px solid rgba(109,40,217,0.18)',
+                      borderLeft: `3px solid ${statusColor}`,
+                    }}>
+                    <div className="flex items-start justify-between gap-3 flex-wrap">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-white font-semibold truncate"
+                          style={{ fontFamily: 'Fredoka One' }}>{app.positionTitle}</p>
+                        {app.gameName && (
+                          <p className="text-xs text-rb-light/40 mt-0.5">{app.gameName}</p>
+                        )}
+                        <div className="flex items-center gap-1.5 mt-1.5 text-xs text-rb-light/30">
+                          <Clock size={11} />
+                          {new Date(app.appliedAt).toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' })}
+                        </div>
+                      </div>
+                      <span className="rb-badge shrink-0 text-xs font-semibold"
+                        style={{ background: `${statusColor}15`, color: statusColor, border: `1px solid ${statusColor}35` }}>
+                        {statusLabel}
+                      </span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Open Positions */}
         {positions.length > 0 && (

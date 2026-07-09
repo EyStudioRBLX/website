@@ -26,15 +26,13 @@ export async function POST(req: NextRequest) {
     await connectDB()
     const body = await req.json() as {
       positionId: string
-      message: string
-      portfolio?: string
+      responses: Array<{ fieldId: string; label: string; value: string }>
     }
 
-    if (!body.positionId || !body.message?.trim()) {
-      return NextResponse.json({ error: 'positionId and message are required' }, { status: 400 })
+    if (!body.positionId || !Array.isArray(body.responses) || body.responses.length === 0) {
+      return NextResponse.json({ error: 'positionId and responses are required' }, { status: 400 })
     }
 
-    // Validate position exists and is open
     const position = await Position.findById(body.positionId)
     if (!position) {
       return NextResponse.json({ error: 'Position not found' }, { status: 404 })
@@ -43,7 +41,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'This position is no longer open' }, { status: 400 })
     }
 
-    // Check for duplicate application
+    // Check required fields are filled
+    for (const field of position.fields) {
+      if (field.required) {
+        const resp = body.responses.find((r) => r.fieldId === field.id)
+        if (!resp?.value?.trim()) {
+          return NextResponse.json({ error: `Pflichtfeld "${field.label}" ist leer` }, { status: 400 })
+        }
+      }
+    }
+
     const existing = await Application.findOne({ positionId: body.positionId, discordId })
     if (existing) {
       return NextResponse.json({ error: 'Du hast dich bereits beworben' }, { status: 409 })
@@ -56,8 +63,11 @@ export async function POST(req: NextRequest) {
       discordId,
       applicantName,
       applicantTag,
-      message: body.message.trim(),
-      portfolio: body.portfolio?.trim() ?? '',
+      responses: body.responses.map((r) => ({
+        fieldId: r.fieldId,
+        label: r.label,
+        value: r.value?.trim() ?? '',
+      })),
     })
 
     const appUrl = process.env.NEXTAUTH_URL ?? 'http://localhost:3000'

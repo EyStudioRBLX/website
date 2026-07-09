@@ -1,0 +1,13 @@
+import { NextResponse } from 'next/server'
+import { requireFounder } from '@/lib/adminGuard'
+import { connectDB } from '@/lib/mongodb'
+import { User } from '@/lib/models/User'
+
+export async function GET() {
+  const guard = await requireFounder()
+  if ('error' in guard) return guard.error
+
+  await connectDB()
+  const users = await User.find({}).sort({ joinedAt: -1 }).lean()
+  return NextResponse.json({ users })
+}

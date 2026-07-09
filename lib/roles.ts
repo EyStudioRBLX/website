@@ -28,7 +28,7 @@ export const ROLES: Record<Role, { label: string; color: string; bg: string; bor
     color: '#f59e0b',
     bg: 'rgba(245,158,11,0.15)',
     border: 'rgba(245,158,11,0.4)',
-    icon: '👑',
+    icon: '',
     permissions: ALL_PERMISSIONS,
   },
   owner: {
@@ -36,7 +36,7 @@ export const ROLES: Record<Role, { label: string; color: string; bg: string; bor
     color: '#ef4444',
     bg: 'rgba(239,68,68,0.15)',
     border: 'rgba(239,68,68,0.4)',
-    icon: '🔱',
+    icon: '',
     permissions: {
       manageUsers: true,
       manageRoles: false,
@@ -52,7 +52,7 @@ export const ROLES: Record<Role, { label: string; color: string; bg: string; bor
     color: '#22c55e',
     bg: 'rgba(34,197,94,0.15)',
     border: 'rgba(34,197,94,0.4)',
-    icon: '🗺️',
+    icon: '',
     permissions: {
       manageUsers: false,
       manageRoles: false,
@@ -68,7 +68,7 @@ export const ROLES: Record<Role, { label: string; color: string; bg: string; bor
     color: '#8b5cf6',
     bg: 'rgba(139,92,246,0.15)',
     border: 'rgba(139,92,246,0.4)',
-    icon: '⚙️',
+    icon: '',
     permissions: {
       manageUsers: false,
       manageRoles: false,
@@ -84,7 +84,7 @@ export const ROLES: Record<Role, { label: string; color: string; bg: string; bor
     color: '#22d3ee',
     bg: 'rgba(34,211,238,0.15)',
     border: 'rgba(34,211,238,0.4)',
-    icon: '🤝',
+    icon: '',
     permissions: {
       manageUsers: false,
       manageRoles: false,
@@ -100,7 +100,7 @@ export const ROLES: Record<Role, { label: string; color: string; bg: string; bor
     color: '#94a3b8',
     bg: 'rgba(148,163,184,0.1)',
     border: 'rgba(148,163,184,0.3)',
-    icon: '👤',
+    icon: '',
     permissions: {
       manageUsers: false,
       manageRoles: false,

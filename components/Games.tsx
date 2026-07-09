@@ -1,10 +1,23 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
+import { Orbit, Zap, Swords, Eye, Heart, Wrench, Joystick } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 
-const games = [
+const games: {
+  Icon: LucideIcon
+  title: string
+  genre: string
+  description: string
+  status: string
+  statusColor: string
+  visits: string
+  favorites: string
+  progress: number
+  accent: string
+}[] = [
   {
-    emoji: '🌌',
+    Icon: Orbit,
     title: 'Void Conquest',
     genre: 'Strategy · PvP',
     description: 'Baue Imperien, forme Allianzen und dominiere das Vakuum zwischen den Sternen. Echtzeit-Strategie auf höchstem Niveau.',
@@ -16,7 +29,7 @@ const games = [
     accent: '#22d3ee',
   },
   {
-    emoji: '⚡',
+    Icon: Zap,
     title: 'Neon Maze Rush',
     genre: 'Racing · Arcade',
     description: 'Rase durch prozedural generierte Neon-Labyrinthe. Jede Runde ein neues Level, jede Sekunde Adrenalin.',
@@ -28,7 +41,7 @@ const games = [
     accent: '#e879f9',
   },
   {
-    emoji: '⚔️',
+    Icon: Swords,
     title: 'Shadow Dungeon',
     genre: 'RPG · Adventure',
     description: 'Erkunde uralte Dungeons, sammle mächtige Artefakte und enthülle die Geheimnisse einer vergessenen Zivilisation.',
@@ -64,7 +77,7 @@ export default function Games() {
           <div>
             <div className="inline-flex items-center gap-2 mb-3 px-3 py-1.5 rounded-lg text-xs font-bold tracking-widest uppercase"
               style={{ background: 'rgba(34,211,238,0.1)', border: '1px solid rgba(34,211,238,0.25)', color: '#22d3ee' }}>
-              🕹️ Portfolio
+              <Joystick size={12} /> Portfolio
             </div>
             <h2 className="text-5xl md:text-6xl text-white leading-none"
               style={{ fontFamily: 'Fredoka One, sans-serif' }}>
@@ -88,9 +101,7 @@ export default function Games() {
                   backgroundImage: 'linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)',
                   backgroundSize: '20px 20px',
                 }} />
-                <span className="text-7xl group-hover:scale-110 transition-transform duration-300 relative z-10">
-                  {g.emoji}
-                </span>
+                <g.Icon size={56} style={{ color: g.accent }} className="group-hover:scale-110 transition-transform duration-300 relative z-10" />
                 {/* Status */}
                 <div className="absolute top-3 right-3 rb-badge font-bold"
                   style={{ background: `${g.statusColor}15`, color: g.statusColor, border: `1px solid ${g.statusColor}35` }}>
@@ -121,9 +132,9 @@ export default function Games() {
                 <div className="flex items-center justify-between pt-3"
                   style={{ borderTop: '1px solid rgba(109,40,217,0.2)' }}>
                   <div className="flex gap-3 text-xs text-rb-light/40">
-                    <span>👁 <span className="text-rb-light/70 font-semibold">{g.visits}</span></span>
-                    <span>❤️ <span className="text-rb-light/70 font-semibold">{g.favorites}</span></span>
-                    <span>🔧 <span style={{ color: g.accent }}>{g.progress}%</span></span>
+                    <span className="inline-flex items-center gap-1"><Eye size={12} /> <span className="text-rb-light/70 font-semibold">{g.visits}</span></span>
+                    <span className="inline-flex items-center gap-1"><Heart size={12} /> <span className="text-rb-light/70 font-semibold">{g.favorites}</span></span>
+                    <span className="inline-flex items-center gap-1"><Wrench size={12} /> <span style={{ color: g.accent }}>{g.progress}%</span></span>
                   </div>
                   <button className="rb-btn text-xs py-1.5 px-3" style={{
                     fontSize: '0.72rem',

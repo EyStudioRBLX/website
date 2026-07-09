@@ -6,6 +6,12 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { getRoleMeta, ROLE_HIERARCHY, type Role } from '@/lib/roles'
+import {
+  LayoutDashboard, Users, Megaphone, Gamepad2, Code2,
+  Crown, ArrowLeft, Search, User, Pencil, Trash2,
+  Clock, CalendarPlus, ExternalLink, Eye, Heart,
+  CheckCircle2, XCircle, Shield, Map, Settings2, HeartHandshake,
+} from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -144,6 +150,15 @@ function AdminSelect(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
 
 // ─── Role Badge ───────────────────────────────────────────────────────────────
 
+const ROLE_ICON_MAP: Record<string, React.ReactNode> = {
+  founder: <Crown size={11} />,
+  owner: <Shield size={11} />,
+  mapper: <Map size={11} />,
+  skripter: <Settings2 size={11} />,
+  helper: <HeartHandshake size={11} />,
+  user: <User size={11} />,
+}
+
 function RoleBadge({ role }: { role: Role }) {
   const meta = getRoleMeta(role)
   return (
@@ -151,7 +166,7 @@ function RoleBadge({ role }: { role: Role }) {
       className="rb-badge"
       style={{ background: meta.bg, color: meta.color, border: `1px solid ${meta.border}`, fontSize: '0.65rem' }}
     >
-      {meta.icon} {meta.label}
+      {ROLE_ICON_MAP[role]} {meta.label}
     </span>
   )
 }
@@ -169,10 +184,10 @@ function OverviewTab({ users, announcements, games }: {
     : '—'
 
   const stats = [
-    { label: 'Total Users', value: users.length, icon: '👥', color: '#8b5cf6' },
-    { label: 'Announcements', value: announcements.length, icon: '📢', color: '#22d3ee' },
-    { label: 'Games', value: games.length, icon: '🎮', color: '#f59e0b' },
-    { label: 'Latest Join', value: latestJoin, icon: '🆕', color: '#22c55e', isDate: true },
+    { label: 'Total Users', value: users.length, icon: <Users size={20} />, color: '#8b5cf6' },
+    { label: 'Announcements', value: announcements.length, icon: <Megaphone size={20} />, color: '#22d3ee' },
+    { label: 'Games', value: games.length, icon: <Gamepad2 size={20} />, color: '#f59e0b' },
+    { label: 'Latest Join', value: latestJoin, icon: <CalendarPlus size={20} />, color: '#22c55e', isDate: true },
   ]
 
   return (
@@ -181,15 +196,15 @@ function OverviewTab({ users, announcements, games }: {
         {stats.map((s) => (
           <div key={s.label} className="dash-stat-card flex items-center gap-4">
             <div
-              className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl shrink-0"
-              style={{ background: `${s.color}18`, border: `1px solid ${s.color}30` }}
+              className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
+              style={{ background: `${s.color}18`, border: `1px solid ${s.color}30`, color: s.color }}
             >
               {s.icon}
             </div>
             <div className="min-w-0">
               <p
                 className="font-display leading-none truncate"
-                style={{ color: s.color, fontSize: s.isDate ? '0.9rem' : '1.8rem' }}
+                style={{ color: s.color, fontSize: (s as any).isDate ? '0.9rem' : '1.8rem' }}
               >
                 {s.value}
               </p>
@@ -201,7 +216,7 @@ function OverviewTab({ users, announcements, games }: {
 
       <div className="rb-panel p-5" style={{ transition: 'none' }}>
         <h2 className="text-lg text-white mb-4 flex items-center gap-2 font-display">
-          <span style={{ color: '#22d3ee' }}>🕐</span> Recent Members
+          <Clock size={18} style={{ color: '#22d3ee' }} /> Recent Members
         </h2>
         {recent.length === 0 ? (
           <p className="text-rb-light/40 text-sm">No users yet.</p>
@@ -213,10 +228,10 @@ function OverviewTab({ users, announcements, games }: {
                   <Image src={u.image} alt={u.name} width={36} height={36} className="rounded-full ring-2 ring-rb-purple/30 shrink-0" />
                 ) : (
                   <div
-                    className="w-9 h-9 rounded-full flex items-center justify-center text-sm shrink-0"
+                    className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
                     style={{ background: 'rgba(109,40,217,0.2)', border: '1px solid rgba(109,40,217,0.4)' }}
                   >
-                    👤
+                    <User size={18} className="text-rb-light/40" />
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
@@ -300,7 +315,7 @@ function UsersTab({ users, myDiscordId, onRefresh, showToast }: {
     <div className="space-y-4">
       <div className="flex items-center gap-3">
         <div className="flex-1 relative">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-rb-light/30 text-sm">🔍</span>
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-rb-light/30" />
           <AdminInput
             placeholder="Search by name or Discord ID…"
             value={search}
@@ -353,10 +368,10 @@ function UsersTab({ users, myDiscordId, onRefresh, showToast }: {
                           <Image src={u.image} alt={u.name} width={32} height={32} className="rounded-full ring-1 ring-rb-purple/40" />
                         ) : (
                           <div
-                            className="w-8 h-8 rounded-full flex items-center justify-center text-sm"
+                            className="w-8 h-8 rounded-full flex items-center justify-center"
                             style={{ background: 'rgba(109,40,217,0.2)', border: '1px solid rgba(109,40,217,0.3)' }}
                           >
-                            👤
+                            <User size={18} className="text-rb-light/40" />
                           </div>
                         )}
                       </td>
@@ -391,7 +406,7 @@ function UsersTab({ users, myDiscordId, onRefresh, showToast }: {
                           >
                             {ROLE_HIERARCHY.map((r) => (
                               <option key={r} value={r} style={{ background: '#140025', color: getRoleMeta(r).color }}>
-                                {getRoleMeta(r).icon} {getRoleMeta(r).label}
+                                {getRoleMeta(r).label}
                               </option>
                             ))}
                           </AdminSelect>
@@ -422,7 +437,7 @@ function UsersTab({ users, myDiscordId, onRefresh, showToast }: {
                               fontFamily: 'Fredoka One, sans-serif',
                             }}
                           >
-                            🗑 Delete
+                            <Trash2 size={13} /> Delete
                           </button>
                         )}
                       </td>
@@ -664,7 +679,7 @@ function AnnouncementsTab({ announcements, myDiscordId, onRefresh, showToast }: 
                         fontSize: '0.75rem',
                       }}
                     >
-                      ✏️ Edit
+                      <Pencil size={13} /> Edit
                     </button>
                     <button
                       onClick={() => deleteAnn(a._id, a.title)}
@@ -683,7 +698,7 @@ function AnnouncementsTab({ announcements, myDiscordId, onRefresh, showToast }: 
                         transition: 'all 0.15s',
                       }}
                     >
-                      🗑 Delete
+                      <Trash2 size={13} /> Delete
                     </button>
                   </div>
                 </div>
@@ -957,8 +972,8 @@ function GamesTab({ games, onRefresh, showToast }: {
                 </div>
 
                 <div className="flex gap-4 text-xs text-rb-light/40 mb-3">
-                  <span>👁 {g.visits}</span>
-                  <span>❤️ {g.fav}</span>
+                  <span className="inline-flex items-center gap-1"><Eye size={11} /> {g.visits}</span>
+                  <span className="inline-flex items-center gap-1"><Heart size={11} /> {g.fav}</span>
                 </div>
 
                 {/* Progress bar */}
@@ -984,9 +999,9 @@ function GamesTab({ games, onRefresh, showToast }: {
                     href={g.robloxUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-xs text-rb-cyan/60 hover:text-rb-cyan transition-colors truncate block mb-3"
+                    className="text-xs text-rb-cyan/60 hover:text-rb-cyan transition-colors truncate block mb-3 inline-flex items-center gap-1"
                   >
-                    🔗 Roblox Page
+                    <ExternalLink size={12} /> Roblox Page
                   </a>
                 )}
 
@@ -1005,7 +1020,7 @@ function GamesTab({ games, onRefresh, showToast }: {
                       fontSize: '0.75rem',
                     }}
                   >
-                    ✏️ Edit
+                    <Pencil size={13} /> Edit
                   </button>
                   <button
                     onClick={() => deleteGame(g._id, g.name)}
@@ -1025,7 +1040,7 @@ function GamesTab({ games, onRefresh, showToast }: {
                       transition: 'all 0.15s',
                     }}
                   >
-                    🗑 Delete
+                    <Trash2 size={13} /> Delete
                   </button>
                 </div>
               </div>
@@ -1056,7 +1071,7 @@ const EMPTY_TEAM_FORM: TeamForm = {
   role: '',
   bio: '',
   color: '#8b5cf6',
-  badge: '👤 Member',
+  badge: 'Member',
   level: 1,
   order: 0,
 }
@@ -1188,9 +1203,9 @@ function TeamTab({ members, onRefresh, showToast }: {
                 />
               </div>
               <div>
-                <label className="block text-rb-light/60 text-sm mb-1">Badge (Emoji + Text)</label>
+                <label className="block text-rb-light/60 text-sm mb-1">Badge Text</label>
                 <AdminInput
-                  placeholder="💻 Scripter"
+                  placeholder="z.B. Scripter"
                   value={form.badge}
                   onChange={(e) => setForm((f) => ({ ...f, badge: e.target.value }))}
                 />
@@ -1330,7 +1345,7 @@ function TeamTab({ members, onRefresh, showToast }: {
                     className="rb-btn-outline text-xs px-3 py-1.5 rounded-lg flex-1"
                     style={{ fontFamily: 'Fredoka One, sans-serif', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem', cursor: 'pointer', fontSize: '0.75rem' }}
                   >
-                    ✏️ Bearbeiten
+                    <Pencil size={13} /> Bearbeiten
                   </button>
                   <button
                     onClick={() => deleteMember(m._id, m.name)}
@@ -1350,7 +1365,7 @@ function TeamTab({ members, onRefresh, showToast }: {
                       transition: 'all 0.15s',
                     }}
                   >
-                    🗑 Entfernen
+                    <Trash2 size={13} /> Entfernen
                   </button>
                 </div>
               </div>
@@ -1367,15 +1382,15 @@ function TeamTab({ members, onRefresh, showToast }: {
 interface NavItem {
   id: Tab
   label: string
-  icon: string
+  icon: React.ReactNode
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { id: 'overview', label: 'Overview', icon: '📊' },
-  { id: 'users', label: 'Users', icon: '👥' },
-  { id: 'announcements', label: 'Announcements', icon: '📢' },
-  { id: 'games', label: 'Games', icon: '🎮' },
-  { id: 'team', label: 'Team', icon: '🧑‍💻' },
+  { id: 'overview', label: 'Overview', icon: <LayoutDashboard size={18} /> },
+  { id: 'users', label: 'Users', icon: <Users size={18} /> },
+  { id: 'announcements', label: 'Announcements', icon: <Megaphone size={18} /> },
+  { id: 'games', label: 'Games', icon: <Gamepad2 size={18} /> },
+  { id: 'team', label: 'Team', icon: <Code2 size={18} /> },
 ]
 
 // ─── Main Admin Page ──────────────────────────────────────────────────────────
@@ -1448,7 +1463,9 @@ export default function AdminPage() {
               style={{ background: 'rgba(109,40,217,0.1)' }}
               aria-label="Toggle sidebar"
             >
-              ☰
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
+                <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
             </button>
             <Link href="/" className="flex items-center gap-2">
               <span className="text-xl font-display" style={{ color: '#c4b5fd', letterSpacing: '0.05em' }}>
@@ -1462,10 +1479,10 @@ export default function AdminPage() {
           {/* Right: founder badge + avatar + logout */}
           <div className="flex items-center gap-3">
             <span
-              className="rb-badge hidden sm:inline-flex"
+              className="rb-badge hidden sm:inline-flex items-center gap-1"
               style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.4)', fontSize: '0.65rem' }}
             >
-              👑 Founder
+              <Crown size={12} /> Founder
             </span>
             {user?.image && (
               <Image
@@ -1530,7 +1547,7 @@ export default function AdminPage() {
                   boxShadow: isActive ? '0 0 16px rgba(109,40,217,0.15) inset' : 'none',
                 }}
               >
-                <span className="text-lg w-6 text-center">{item.icon}</span>
+                <span className="w-6 flex items-center justify-center">{item.icon}</span>
                 <span className="text-sm font-semibold">{item.label}</span>
                 {isActive && (
                   <span className="ml-auto w-1.5 h-1.5 rounded-full" style={{ background: '#8b5cf6' }} />
@@ -1545,7 +1562,7 @@ export default function AdminPage() {
               href="/dashboard"
               className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-rb-light/30 hover:text-rb-light/60 transition-colors text-sm"
             >
-              ← Dashboard
+              <ArrowLeft size={14} /> Dashboard
             </Link>
           </div>
         </aside>
@@ -1554,7 +1571,7 @@ export default function AdminPage() {
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 min-w-0">
           {/* Tab heading */}
           <div className="mb-6 flex items-center gap-3">
-            <span className="text-2xl">{NAV_ITEMS.find((n) => n.id === activeTab)?.icon}</span>
+            <span className="flex items-center">{NAV_ITEMS.find((n) => n.id === activeTab)?.icon}</span>
             <h1 className="text-2xl text-white font-display">
               {NAV_ITEMS.find((n) => n.id === activeTab)?.label}
             </h1>
@@ -1609,7 +1626,7 @@ export default function AdminPage() {
       {toast && (
         <div
           key={toast.id}
-          className="fixed bottom-6 right-6 z-[9999] px-4 py-3 rounded-xl text-sm font-semibold shadow-lg"
+          className="fixed bottom-6 right-6 z-[9999] px-4 py-3 rounded-xl text-sm font-semibold shadow-lg flex items-center gap-2"
           style={{
             background: toast.type === 'success' ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
             border: `1px solid ${toast.type === 'success' ? 'rgba(34,197,94,0.4)' : 'rgba(239,68,68,0.4)'}`,
@@ -1619,7 +1636,7 @@ export default function AdminPage() {
             maxWidth: '320px',
           }}
         >
-          {toast.type === 'success' ? '✅' : '❌'} {toast.message}
+          {toast.type === 'success' ? <CheckCircle2 size={16} /> : <XCircle size={16} />} {toast.message}
         </div>
       )}
 

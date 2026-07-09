@@ -6,6 +6,11 @@ import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { getRoleMeta, type Role } from '@/lib/roles'
+import {
+  KeyRound, Star, Gamepad2, Users, Megaphone, Link2, ChevronRight,
+  Joystick, Eye, Heart, MessageCircle, Mail, User, Crown, Shield,
+  Map, Settings2, HeartHandshake,
+} from 'lucide-react'
 
 interface DbUser {
   discordId: string
@@ -25,11 +30,20 @@ const ANNOUNCEMENTS = [
 ]
 
 const QUICK_LINKS = [
-  { label: 'Discord Server', icon: '💬', href: '#', color: '#5865F2' },
-  { label: 'Roblox Gruppe', icon: '🎮', href: '#', color: '#e879f9' },
-  { label: 'Spiele ansehen', icon: '🕹️', href: '/#games', color: '#22d3ee' },
-  { label: 'Team kontaktieren', icon: '✉️', href: '/#contact', color: '#f59e0b' },
+  { label: 'Discord Server', Icon: MessageCircle, href: '#', color: '#5865F2' },
+  { label: 'Roblox Gruppe', Icon: Gamepad2, href: '#', color: '#e879f9' },
+  { label: 'Spiele ansehen', Icon: Joystick, href: '/#games', color: '#22d3ee' },
+  { label: 'Team kontaktieren', Icon: Mail, href: '/#contact', color: '#f59e0b' },
 ]
+
+const ROLE_ICON_MAP: Record<string, React.ReactNode> = {
+  founder: <Crown size={12} />,
+  owner: <Shield size={12} />,
+  mapper: <Map size={12} />,
+  skripter: <Settings2 size={12} />,
+  helper: <HeartHandshake size={12} />,
+  user: <User size={12} />,
+}
 
 export default function DashboardPage() {
   const { data: session, status } = useSession()
@@ -62,6 +76,13 @@ export default function DashboardPage() {
   const xpProgress = ((loginCount % 3) / 3) * 100
 
   const role = getRoleMeta(dbUser?.role ?? 'user')
+
+  const statCards = [
+    { label: 'Logins gesamt', value: loginCount, Icon: KeyRound, color: '#8b5cf6', suffix: 'x' },
+    { label: 'Studio Level', value: xpLevel, Icon: Star, color: '#f59e0b', suffix: '' },
+    { label: 'Aktive Spiele', value: 3, Icon: Gamepad2, color: '#22d3ee', suffix: '' },
+    { label: 'Team-Mitglieder', value: 4, Icon: Users, color: '#22c55e', suffix: '' },
+  ]
 
   return (
     <div className="min-h-screen hex-bg" style={{ background: '#08010f' }}>
@@ -99,9 +120,9 @@ export default function DashboardPage() {
               <Image src={user.image} alt="Avatar" width={80} height={80}
                 className="rounded-2xl ring-4 ring-rb-purple/40" />
             ) : (
-              <div className="w-20 h-20 rounded-2xl flex items-center justify-center text-3xl"
+              <div className="w-20 h-20 rounded-2xl flex items-center justify-center"
                 style={{ background: 'rgba(109,40,217,0.2)', border: '2px solid rgba(109,40,217,0.4)' }}>
-                👾
+                <User size={32} style={{ color: '#c4b5fd' }} />
               </div>
             )}
             {/* Level badge */}
@@ -118,8 +139,7 @@ export default function DashboardPage() {
               </h1>
               <span className="rb-badge text-xs font-bold flex items-center gap-1"
                 style={{ background: role.bg, color: role.color, border: `1px solid ${role.border}` }}>
-                <span>{role.icon}</span>
-                {role.label}
+                {ROLE_ICON_MAP[dbUser?.role ?? 'user']} {role.label}
               </span>
             </div>
             <p className="text-rb-light/40 text-sm mb-3">Mitglied seit {joinDate}</p>
@@ -143,16 +163,11 @@ export default function DashboardPage() {
 
         {/* Stat cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { label: 'Logins gesamt', value: loginCount, icon: '🔐', color: '#8b5cf6', suffix: 'x' },
-            { label: 'Studio Level', value: xpLevel, icon: '⭐', color: '#f59e0b', suffix: '' },
-            { label: 'Aktive Spiele', value: 3, icon: '🎮', color: '#22d3ee', suffix: '' },
-            { label: 'Team-Mitglieder', value: 4, icon: '👥', color: '#22c55e', suffix: '' },
-          ].map((s) => (
+          {statCards.map((s) => (
             <div key={s.label} className="dash-stat-card flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl shrink-0"
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
                 style={{ background: `${s.color}15`, border: `1px solid ${s.color}30` }}>
-                {s.icon}
+                <s.Icon size={24} style={{ color: s.color }} />
               </div>
               <div>
                 <p className="stat-value" style={{ color: s.color }}>
@@ -170,7 +185,7 @@ export default function DashboardPage() {
           <div className="lg:col-span-2 rb-panel p-5" style={{ transition: 'none' }}>
             <h2 className="text-lg text-white mb-4 flex items-center gap-2"
               style={{ fontFamily: 'Fredoka One, sans-serif' }}>
-              <span style={{ color: '#8b5cf6' }}>📢</span> Studio-News
+              <Megaphone size={18} style={{ color: '#8b5cf6' }} /> Studio-News
             </h2>
             <div className="space-y-3">
               {ANNOUNCEMENTS.map((a) => (
@@ -196,16 +211,16 @@ export default function DashboardPage() {
           <div className="rb-panel p-5" style={{ transition: 'none' }}>
             <h2 className="text-lg text-white mb-4 flex items-center gap-2"
               style={{ fontFamily: 'Fredoka One, sans-serif' }}>
-              <span style={{ color: '#22d3ee' }}>🔗</span> Quick Links
+              <Link2 size={18} style={{ color: '#22d3ee' }} /> Quick Links
             </h2>
             <div className="space-y-2">
               {QUICK_LINKS.map((l) => (
                 <Link key={l.label} href={l.href}
                   className="flex items-center gap-3 p-3 rounded-xl transition-all duration-200 group"
                   style={{ background: 'rgba(109,40,217,0.06)', border: '1px solid rgba(109,40,217,0.15)' }}>
-                  <span className="text-xl">{l.icon}</span>
+                  <l.Icon size={20} style={{ color: l.color }} />
                   <span className="text-sm text-rb-light/70 group-hover:text-white transition-colors">{l.label}</span>
-                  <span className="ml-auto text-rb-light/20 group-hover:text-rb-light/60 transition-colors text-xs">→</span>
+                  <span className="ml-auto text-rb-light/20 group-hover:text-rb-light/60 transition-colors"><ChevronRight size={14} /></span>
                 </Link>
               ))}
             </div>
@@ -232,7 +247,7 @@ export default function DashboardPage() {
         <div className="rb-panel p-5" style={{ transition: 'none' }}>
           <h2 className="text-lg text-white mb-4 flex items-center gap-2"
             style={{ fontFamily: 'Fredoka One, sans-serif' }}>
-            <span style={{ color: '#f59e0b' }}>🕹️</span> Spiele-Übersicht
+            <Joystick size={18} style={{ color: '#f59e0b' }} /> Spiele-Übersicht
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {[
@@ -250,8 +265,8 @@ export default function DashboardPage() {
                   </span>
                 </div>
                 <div className="flex gap-4 text-xs text-rb-light/40 mb-3">
-                  <span>👁 {g.visits}</span>
-                  <span>❤️ {g.fav}</span>
+                  <span className="inline-flex items-center gap-1"><Eye size={11} /> {g.visits}</span>
+                  <span className="inline-flex items-center gap-1"><Heart size={11} /> {g.fav}</span>
                 </div>
                 <div className="xp-bar-track">
                   <div className="xp-bar-fill" style={{

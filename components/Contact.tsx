@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { signIn, useSession } from 'next-auth/react'
+import { Mail, MessageCircle, Info, Zap, Globe, Briefcase, MapPin, CheckCircle2, Loader2, Send } from 'lucide-react'
 
 export default function Contact() {
   const { data: session } = useSession()
@@ -40,6 +41,13 @@ export default function Contact() {
 
   const inputClass = "w-full bg-rb-panel/60 border-2 border-rb-border/50 rounded-xl px-4 py-3 text-sm text-white placeholder-rb-light/25 focus:outline-none focus:border-rb-purple/60 transition-colors"
 
+  const infoItems: [React.ReactNode, string][] = [
+    [<><Zap size={12} /> Antwortzeit</>, '< 24 Std.'],
+    [<><Globe size={12} /> Sprachen</>, 'DE · EN'],
+    [<><Briefcase size={12} /> Projekte</>, 'Alle Größen'],
+    [<><MapPin size={12} /> Standort</>, 'Deutschland & EU'],
+  ]
+
   return (
     <section id="contact" ref={ref} className="py-28 px-6 relative">
       <div className="absolute inset-x-0 top-0 h-px"
@@ -49,7 +57,7 @@ export default function Contact() {
         <div className="reveal mb-12 text-center">
           <div className="inline-flex items-center gap-2 mb-3 px-3 py-1.5 rounded-lg text-xs font-bold tracking-widest uppercase"
             style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', color: '#f59e0b' }}>
-            ✉️ Schreib uns
+            <Mail size={12} /> Schreib uns
           </div>
           <h2 className="text-5xl md:text-6xl text-white" style={{ fontFamily: 'Fredoka One, sans-serif' }}>
             Kontakt <span className="gradient-text">aufnehmen</span>
@@ -66,7 +74,7 @@ export default function Contact() {
             <div className="rb-panel p-5">
               <h3 className="text-white font-bold mb-1 flex items-center gap-2"
                 style={{ fontFamily: 'Fredoka One, sans-serif' }}>
-                <span style={{ color: '#5865F2' }}>💬</span> Discord
+                <MessageCircle size={16} style={{ color: '#5865F2' }} /> Discord
               </h3>
               <p className="text-rb-light/40 text-xs leading-relaxed mb-4">
                 Der schnellste Weg — tritt unserem Server bei!
@@ -88,16 +96,13 @@ export default function Contact() {
 
             {/* Info list */}
             <div className="rb-panel p-5">
-              <h3 className="text-white font-bold mb-3" style={{ fontFamily: 'Fredoka One, sans-serif' }}>ℹ️ Quick Info</h3>
+              <h3 className="text-white font-bold mb-3 flex items-center gap-2" style={{ fontFamily: 'Fredoka One, sans-serif' }}>
+                <Info size={16} /> Quick Info
+              </h3>
               <div className="space-y-2.5">
-                {[
-                  ['⚡ Antwortzeit', '< 24 Std.'],
-                  ['🌍 Sprachen',    'DE · EN'],
-                  ['💼 Projekte',    'Alle Größen'],
-                  ['📍 Standort',    'Deutschland & EU'],
-                ].map(([k, v]) => (
-                  <div key={k} className="flex justify-between items-center text-xs">
-                    <span className="text-rb-light/40">{k}</span>
+                {infoItems.map(([k, v], idx) => (
+                  <div key={idx} className="flex justify-between items-center text-xs">
+                    <span className="text-rb-light/40 flex items-center gap-1">{k}</span>
                     <span className="text-rb-light/80 font-semibold">{v}</span>
                   </div>
                 ))}
@@ -109,9 +114,9 @@ export default function Contact() {
           <div className="md:col-span-3 rb-panel p-6">
             {status === 'sent' ? (
               <div className="h-full min-h-[280px] flex flex-col items-center justify-center gap-4 text-center">
-                <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl"
+                <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
                   style={{ background: 'rgba(34,197,94,0.12)', border: '2px solid rgba(34,197,94,0.3)', boxShadow: '0 4px 0 rgba(34,197,94,0.1)' }}>
-                  ✅
+                  <CheckCircle2 size={40} style={{ color: '#22c55e' }} />
                 </div>
                 <div>
                   <h3 className="text-xl text-white mb-1" style={{ fontFamily: 'Fredoka One, sans-serif' }}>Gesendet!</h3>
@@ -153,8 +158,10 @@ export default function Contact() {
                   <p className="text-red-400 text-xs">Fehler beim Senden. Bitte versuche es erneut.</p>
                 )}
                 <button type="submit" disabled={status === 'sending'}
-                  className="rb-btn w-full py-3.5 text-sm disabled:opacity-60 disabled:cursor-not-allowed">
-                  {status === 'sending' ? '⏳ Wird gesendet...' : '🚀 Nachricht senden'}
+                  className="rb-btn w-full py-3.5 text-sm disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2">
+                  {status === 'sending'
+                    ? <><Loader2 size={16} className="animate-spin" /> Wird gesendet...</>
+                    : <><Send size={16} /> Nachricht senden</>}
                 </button>
               </form>
             )}

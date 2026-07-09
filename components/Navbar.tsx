@@ -4,6 +4,7 @@ import { signIn, signOut, useSession } from 'next-auth/react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
+import { LayoutDashboard, Menu, X } from 'lucide-react'
 
 export default function Navbar() {
   const { data: session } = useSession()
@@ -48,8 +49,8 @@ export default function Navbar() {
         <div className="hidden md:flex items-center gap-3">
           {session ? (
             <>
-              <Link href="/dashboard" className="rb-btn text-sm py-2 px-4">
-                📊 Dashboard
+              <Link href="/dashboard" className="rb-btn text-sm py-2 px-4 inline-flex items-center gap-1.5">
+                <LayoutDashboard size={16} /> Dashboard
               </Link>
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl"
                 style={{ background: 'rgba(109,40,217,0.12)', border: '1px solid rgba(109,40,217,0.3)' }}>
@@ -58,7 +59,7 @@ export default function Navbar() {
                     className="rounded-lg ring-1 ring-rb-purple/40" />
                 )}
                 <span className="text-sm text-rb-light font-semibold">{session.user?.name}</span>
-                <button onClick={() => signOut()} className="text-xs text-rb-light/30 hover:text-red-400 transition-colors ml-1">✕</button>
+                <button onClick={() => signOut()} className="text-xs text-rb-light/30 hover:text-red-400 transition-colors ml-1"><X size={12} /></button>
               </div>
             </>
           ) : (
@@ -74,7 +75,7 @@ export default function Navbar() {
         <button className="md:hidden w-9 h-9 flex items-center justify-center rounded-lg"
           style={{ background: 'rgba(109,40,217,0.15)', border: '1px solid rgba(109,40,217,0.3)' }}
           onClick={() => setMenuOpen(!menuOpen)}>
-          <span className="text-rb-light text-lg">{menuOpen ? '✕' : '☰'}</span>
+          <span className="text-rb-light">{menuOpen ? <X size={18} /> : <Menu size={18} />}</span>
         </button>
       </div>
 
@@ -89,8 +90,8 @@ export default function Navbar() {
           ))}
           {session ? (
             <div className="pt-2 space-y-2">
-              <Link href="/dashboard" className="rb-btn w-full justify-center text-sm" onClick={() => setMenuOpen(false)}>
-                📊 Dashboard
+              <Link href="/dashboard" className="rb-btn w-full justify-center text-sm inline-flex items-center gap-1.5" onClick={() => setMenuOpen(false)}>
+                <LayoutDashboard size={16} /> Dashboard
               </Link>
               <button onClick={() => signOut()} className="w-full text-center text-sm text-red-400/70 py-2">Logout</button>
             </div>

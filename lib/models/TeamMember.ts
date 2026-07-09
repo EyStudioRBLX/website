@@ -18,7 +18,7 @@ const TeamMemberSchema = new Schema<ITeamMember>(
     role:     { type: String, required: true },
     bio:      { type: String, default: '' },
     color:    { type: String, default: '#8b5cf6' },
-    badge:    { type: String, default: '👤 Member' },
+    badge:    { type: String, default: 'Member' },
     level:    { type: Number, min: 1, max: 50, default: 1 },
     order:    { type: Number, default: 0 },
   },

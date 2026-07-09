@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { Users } from 'lucide-react'
 
 interface TeamMember {
   _id: string
@@ -44,7 +45,7 @@ export default function Team() {
         <div className="reveal mb-12 text-center">
           <div className="inline-flex items-center gap-2 mb-3 px-3 py-1.5 rounded-lg text-xs font-bold tracking-widest uppercase"
             style={{ background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.25)', color: '#8b5cf6' }}>
-            👥 Die Menschen dahinter
+            <Users size={12} /> Die Menschen dahinter
           </div>
           <h2 className="text-5xl md:text-6xl text-white" style={{ fontFamily: 'Fredoka One, sans-serif' }}>
             Unser <span className="gradient-text">Team</span>

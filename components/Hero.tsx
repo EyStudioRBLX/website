@@ -3,6 +3,7 @@
 import { signIn, useSession } from 'next-auth/react'
 import Link from 'next/link'
 import { useEffect, useRef } from 'react'
+import { Gamepad2, LayoutDashboard } from 'lucide-react'
 
 export default function Hero() {
   const { data: session } = useSession()
@@ -126,12 +127,12 @@ export default function Hero() {
 
         {/* CTAs */}
         <div className="flex flex-col sm:flex-row gap-3 items-center w-full sm:w-auto">
-          <a href="#games" className="rb-btn rb-btn-gold w-full sm:w-auto text-sm px-7 py-3">
-            🎮 Spiele entdecken
+          <a href="#games" className="rb-btn rb-btn-gold w-full sm:w-auto text-sm px-7 py-3 inline-flex items-center gap-2">
+            <Gamepad2 size={16} /> Spiele entdecken
           </a>
           {session ? (
-            <Link href="/dashboard" className="rb-btn w-full sm:w-auto text-sm px-7 py-3">
-              📊 Zum Dashboard
+            <Link href="/dashboard" className="rb-btn w-full sm:w-auto text-sm px-7 py-3 inline-flex items-center gap-2">
+              <LayoutDashboard size={16} /> Zum Dashboard
             </Link>
           ) : (
             <button onClick={() => signIn('discord')}

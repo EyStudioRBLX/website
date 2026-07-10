@@ -5,6 +5,7 @@ import { connectDB } from '@/lib/mongodb'
 import { Position } from '@/lib/models/Position'
 import { Application } from '@/lib/models/Application'
 import { sendNewApplicationWebhook } from '@/lib/webhook'
+import { sendDiscordDM } from '@/lib/discordBot'
 
 export const dynamic = 'force-dynamic'
 
@@ -71,6 +72,12 @@ export async function POST(req: NextRequest) {
     })
 
     const appUrl = process.env.NEXTAUTH_URL ?? 'http://localhost:3000'
+
+    await sendDiscordDM(
+      discordId,
+      `Hey ${applicantName}! 👋\n\nDeine Bewerbung für **${position.title}**${position.gameName ? ` (${position.gameName})` : ''} bei **EyStudio** wurde erfolgreich eingereicht.\n\nWir melden uns so schnell wie möglich bei dir. Danke für dein Interesse! 🎮`,
+    )
+
     await sendNewApplicationWebhook({
       applicantName,
       positionTitle: position.title,

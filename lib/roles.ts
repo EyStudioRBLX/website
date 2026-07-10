@@ -8,6 +8,7 @@ export interface RolePermissions {
   manageGames: boolean
   manageScripts: boolean
   manageAnnouncements: boolean
+  manageContactForm: boolean
   viewAdminPanel: boolean
   viewDashboard: boolean
 }
@@ -18,6 +19,7 @@ const ALL_PERMISSIONS: RolePermissions = {
   manageGames: true,
   manageScripts: true,
   manageAnnouncements: true,
+  manageContactForm: true,
   viewAdminPanel: true,
   viewDashboard: true,
 }
@@ -43,6 +45,7 @@ export const ROLES: Record<Role, { label: string; color: string; bg: string; bor
       manageGames: true,
       manageScripts: true,
       manageAnnouncements: true,
+      manageContactForm: true,
       viewAdminPanel: true,
       viewDashboard: true,
     },
@@ -59,6 +62,7 @@ export const ROLES: Record<Role, { label: string; color: string; bg: string; bor
       manageGames: true,
       manageScripts: false,
       manageAnnouncements: false,
+      manageContactForm: false,
       viewAdminPanel: false,
       viewDashboard: true,
     },
@@ -75,6 +79,7 @@ export const ROLES: Record<Role, { label: string; color: string; bg: string; bor
       manageGames: false,
       manageScripts: true,
       manageAnnouncements: false,
+      manageContactForm: false,
       viewAdminPanel: false,
       viewDashboard: true,
     },
@@ -91,6 +96,7 @@ export const ROLES: Record<Role, { label: string; color: string; bg: string; bor
       manageGames: false,
       manageScripts: false,
       manageAnnouncements: false,
+      manageContactForm: false,
       viewAdminPanel: false,
       viewDashboard: true,
     },
@@ -107,6 +113,7 @@ export const ROLES: Record<Role, { label: string; color: string; bg: string; bor
       manageGames: false,
       manageScripts: false,
       manageAnnouncements: false,
+      manageContactForm: false,
       viewAdminPanel: false,
       viewDashboard: true,
     },

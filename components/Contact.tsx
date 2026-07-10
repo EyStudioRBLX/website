@@ -3,12 +3,28 @@
 import { useEffect, useRef, useState } from 'react'
 import { signIn, useSession } from 'next-auth/react'
 import { Mail, MessageCircle, Info, Zap, Globe, Briefcase, MapPin, CheckCircle2, Loader2, Send } from 'lucide-react'
+import type { ContactFormField } from '@/lib/models/ContactForm'
 
 export default function Contact() {
   const { data: session } = useSession()
   const ref = useRef<HTMLDivElement>(null)
-  const [form, setForm] = useState({ name: '', email: '', subject: '', message: '' })
+  const [fields, setFields] = useState<ContactFormField[]>([])
+  const [values, setValues] = useState<Record<string, string>>({})
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
+  const [errorMsg, setErrorMsg] = useState('')
+
+  useEffect(() => {
+    fetch('/api/contact-form-config')
+      .then((r) => r.json())
+      .then((d) => {
+        const sorted = [...(d.fields ?? [])].sort((a: ContactFormField, b: ContactFormField) => a.order - b.order)
+        setFields(sorted)
+        const init: Record<string, string> = {}
+        sorted.forEach((f: ContactFormField) => { init[f.id] = '' })
+        setValues(init)
+      })
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     const obs = new IntersectionObserver(
@@ -22,19 +38,26 @@ export default function Contact() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setStatus('sending')
+    setErrorMsg('')
     try {
+      const responses = fields.map((f) => ({ fieldId: f.id, label: f.label, value: values[f.id] ?? '' }))
       const res = await fetch('/api/contact', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ responses }),
       })
       if (res.ok) {
         setStatus('sent')
-        setForm({ name: '', email: '', subject: '', message: '' })
+        const reset: Record<string, string> = {}
+        fields.forEach((f) => { reset[f.id] = '' })
+        setValues(reset)
       } else {
+        const d = await res.json()
+        setErrorMsg(d.error ?? 'Fehler beim Senden.')
         setStatus('error')
       }
     } catch {
+      setErrorMsg('Netzwerkfehler. Bitte versuche es erneut.')
       setStatus('error')
     }
   }
@@ -47,6 +70,82 @@ export default function Contact() {
     [<><Briefcase size={12} /> Projekte</>, 'Alle Größen'],
     [<><MapPin size={12} /> Standort</>, 'Deutschland & EU'],
   ]
+
+  function renderField(f: ContactFormField) {
+    const val = values[f.id] ?? ''
+    const set = (v: string) => setValues((prev) => ({ ...prev, [f.id]: v }))
+
+    if (f.type === 'textarea') {
+      return (
+        <textarea
+          rows={5}
+          required={f.required}
+          placeholder={f.placeholder}
+          value={val}
+          onChange={(e) => set(e.target.value)}
+          className={`${inputClass} resize-none`}
+        />
+      )
+    }
+
+    if (f.type === 'select' && f.options.length > 0) {
+      return (
+        <select
+          required={f.required}
+          value={val}
+          onChange={(e) => set(e.target.value)}
+          className={inputClass}
+          style={{ background: 'rgba(8,1,15,0.8)' }}
+        >
+          <option value="">{f.placeholder || 'Bitte wählen…'}</option>
+          {f.options.map((opt) => (
+            <option key={opt} value={opt}>{opt}</option>
+          ))}
+        </select>
+      )
+    }
+
+    if (f.type === 'checkbox' && f.options.length > 0) {
+      const checked = val ? val.split(',').map((s) => s.trim()) : []
+      return (
+        <div className="space-y-1.5">
+          {f.options.map((opt) => (
+            <label key={opt} className="flex items-center gap-2 cursor-pointer text-sm text-rb-light/70">
+              <input
+                type="checkbox"
+                checked={checked.includes(opt)}
+                onChange={(e) => {
+                  const next = e.target.checked
+                    ? [...checked, opt]
+                    : checked.filter((c) => c !== opt)
+                  set(next.join(', '))
+                }}
+                style={{ accentColor: '#8b5cf6', width: '14px', height: '14px' }}
+              />
+              {opt}
+            </label>
+          ))}
+        </div>
+      )
+    }
+
+    return (
+      <input
+        type={f.type === 'email' ? 'email' : 'text'}
+        required={f.required}
+        placeholder={f.placeholder}
+        value={val}
+        onChange={(e) => set(e.target.value)}
+        className={inputClass}
+      />
+    )
+  }
+
+  // Group the first two text/email fields side-by-side if they exist (e.g. Name + E-Mail)
+  const pairedFirstTwo =
+    fields.length >= 2 &&
+    ['text', 'email'].includes(fields[0].type) &&
+    ['text', 'email'].includes(fields[1].type)
 
   return (
     <section id="contact" ref={ref} className="py-28 px-6 relative">
@@ -128,36 +227,37 @@ export default function Contact() {
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-rb-light/40 text-xs font-semibold tracking-widest uppercase block mb-1.5">Name</label>
-                    <input type="text" required placeholder="Dein Name"
-                      value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
-                      className={inputClass} />
-                  </div>
-                  <div>
-                    <label className="text-rb-light/40 text-xs font-semibold tracking-widest uppercase block mb-1.5">E-Mail</label>
-                    <input type="email" required placeholder="deine@email.de"
-                      value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
-                      className={inputClass} />
-                  </div>
-                </div>
-                <div>
-                  <label className="text-rb-light/40 text-xs font-semibold tracking-widest uppercase block mb-1.5">Betreff</label>
-                  <input type="text" required placeholder="Worum geht es?"
-                    value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })}
-                    className={inputClass} />
-                </div>
-                <div>
-                  <label className="text-rb-light/40 text-xs font-semibold tracking-widest uppercase block mb-1.5">Nachricht</label>
-                  <textarea required rows={5} placeholder="Beschreibe dein Projekt..."
-                    value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })}
-                    className={`${inputClass} resize-none`} />
-                </div>
-                {status === 'error' && (
-                  <p className="text-red-400 text-xs">Fehler beim Senden. Bitte versuche es erneut.</p>
+                {fields.length === 0 && (
+                  <p className="text-rb-light/30 text-sm text-center py-4">Formular wird geladen…</p>
                 )}
-                <button type="submit" disabled={status === 'sending'}
+
+                {pairedFirstTwo && (
+                  <div className="grid grid-cols-2 gap-4">
+                    {[fields[0], fields[1]].map((f) => (
+                      <div key={f.id}>
+                        <label className="text-rb-light/40 text-xs font-semibold tracking-widest uppercase block mb-1.5">
+                          {f.label}{f.required && <span className="text-red-400 ml-0.5">*</span>}
+                        </label>
+                        {renderField(f)}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {(pairedFirstTwo ? fields.slice(2) : fields).map((f) => (
+                  <div key={f.id}>
+                    <label className="text-rb-light/40 text-xs font-semibold tracking-widest uppercase block mb-1.5">
+                      {f.label}{f.required && <span className="text-red-400 ml-0.5">*</span>}
+                    </label>
+                    {renderField(f)}
+                  </div>
+                ))}
+
+                {status === 'error' && (
+                  <p className="text-red-400 text-xs">{errorMsg}</p>
+                )}
+
+                <button type="submit" disabled={status === 'sending' || fields.length === 0}
                   className="rb-btn w-full py-3.5 text-sm disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2">
                   {status === 'sending'
                     ? <><Loader2 size={16} className="animate-spin" /> Wird gesendet...</>

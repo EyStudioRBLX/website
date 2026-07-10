@@ -7,7 +7,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { getRoleMeta, ROLE_HIERARCHY, hasPermission, canManage, type Role } from '@/lib/roles'
 import {
-  LayoutDashboard, Users, Megaphone, Gamepad2, Code2,
+  LayoutDashboard, Users, Megaphone, Gamepad2, Code2, Mail,
   Crown, ArrowLeft, Search, User, Pencil, Trash2,
   Clock, CalendarPlus, ExternalLink, Eye, Heart,
   CheckCircle2, XCircle, Shield, Map, Settings2, HeartHandshake,
@@ -61,7 +61,17 @@ interface TeamMember {
   order: number
 }
 
-type Tab = 'overview' | 'users' | 'announcements' | 'games' | 'team' | 'positions' | 'applications'
+type Tab = 'overview' | 'users' | 'announcements' | 'games' | 'team' | 'positions' | 'applications' | 'contact-form'
+
+interface ContactFormField {
+  id: string
+  label: string
+  type: 'text' | 'textarea' | 'email' | 'select' | 'checkbox'
+  placeholder: string
+  required: boolean
+  options: string[]
+  order: number
+}
 
 interface FormField {
   id: string
@@ -2186,6 +2196,281 @@ function BewerbungenTab({ applications, onRefresh, showToast, highlightedId }: {
   )
 }
 
+// ─── Contact Form Tab ─────────────────────────────────────────────────────────
+
+const EMPTY_CF_FIELD: Omit<ContactFormField, 'id' | 'order'> = {
+  label: '',
+  type: 'text',
+  placeholder: '',
+  required: true,
+  options: [],
+}
+
+function ContactFormTab({ fields: initialFields, onRefresh, showToast }: {
+  fields: ContactFormField[]
+  onRefresh: () => void
+  showToast: (msg: string, type?: 'success' | 'error') => void
+}) {
+  const [fields, setFields] = useState<ContactFormField[]>(() =>
+    [...initialFields].sort((a, b) => a.order - b.order)
+  )
+  const [addOpen, setAddOpen] = useState(false)
+  const [editingField, setEditingField] = useState<ContactFormField | null>(null)
+  const [fieldForm, setFieldForm] = useState<Omit<ContactFormField, 'id' | 'order'>>(EMPTY_CF_FIELD)
+  const [optionsRaw, setOptionsRaw] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    setFields([...initialFields].sort((a, b) => a.order - b.order))
+  }, [initialFields])
+
+  function openAdd() {
+    setEditingField(null)
+    setFieldForm(EMPTY_CF_FIELD)
+    setOptionsRaw('')
+    setAddOpen(true)
+  }
+
+  function openEdit(f: ContactFormField) {
+    setEditingField(f)
+    setFieldForm({ label: f.label, type: f.type, placeholder: f.placeholder, required: f.required, options: f.options })
+    setOptionsRaw(f.options.join(', '))
+    setAddOpen(true)
+  }
+
+  function cancel() { setAddOpen(false); setEditingField(null) }
+
+  function saveField() {
+    if (!fieldForm.label.trim()) { showToast('Label ist Pflicht', 'error'); return }
+    const options = optionsRaw.split(',').map((o) => o.trim()).filter(Boolean)
+    if (editingField) {
+      setFields((prev) => prev.map((f) => f.id === editingField.id ? { ...editingField, ...fieldForm, options } : f))
+    } else {
+      setFields((prev) => [...prev, { id: `cf_${Date.now()}`, ...fieldForm, options, order: prev.length }])
+    }
+    cancel()
+  }
+
+  function removeField(id: string) {
+    setFields((prev) => prev.filter((f) => f.id !== id).map((f, i) => ({ ...f, order: i })))
+  }
+
+  function moveField(id: string, dir: -1 | 1) {
+    setFields((prev) => {
+      const idx = prev.findIndex((f) => f.id === id)
+      if (idx + dir < 0 || idx + dir >= prev.length) return prev
+      const next = [...prev];
+      [next[idx], next[idx + dir]] = [next[idx + dir], next[idx]]
+      return next.map((f, i) => ({ ...f, order: i }))
+    })
+  }
+
+  async function saveAll() {
+    setSaving(true)
+    try {
+      const res = await fetch('/api/admin/contact-form', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fields }),
+      })
+      if (!res.ok) {
+        const d = await res.json()
+        showToast(d.error ?? 'Fehler beim Speichern', 'error')
+      } else {
+        showToast('Kontaktformular gespeichert')
+        onRefresh()
+      }
+    } catch {
+      showToast('Netzwerkfehler', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const typeLabels: Record<ContactFormField['type'], string> = {
+    text: 'Text (kurze Eingabe)',
+    textarea: 'Textarea (langer Text)',
+    email: 'E-Mail',
+    select: 'Auswahl (Dropdown)',
+    checkbox: 'Checkbox-Optionen',
+  }
+
+  return (
+    <div className="space-y-4 max-w-2xl">
+      <div className="rb-panel p-5" style={{ border: '2px solid rgba(109,40,217,0.3)' }}>
+        <div className="flex items-center justify-between mb-1">
+          <h3 className="text-white font-display text-sm flex items-center gap-2">
+            <Mail size={15} style={{ color: '#8b5cf6' }} /> Formularfelder
+          </h3>
+          <span className="text-xs text-rb-light/35">{fields.length} Felder</span>
+        </div>
+        <p className="text-xs text-rb-light/30 mb-4">
+          Die Reihenfolge und Felder des Kontaktformulars auf der Startseite.
+        </p>
+
+        {fields.length === 0 ? (
+          <div className="text-center py-6 text-rb-light/30 text-sm mb-4">
+            Keine Felder — Standardformular wird angezeigt.
+          </div>
+        ) : (
+          <div className="space-y-2 mb-4">
+            {fields.map((f, idx) => (
+              <div key={f.id} className="flex items-center gap-2 rounded-lg px-3 py-2.5"
+                style={{ background: 'rgba(109,40,217,0.08)', border: '1px solid rgba(109,40,217,0.18)' }}>
+                <div className="flex flex-col gap-0.5">
+                  <button onClick={() => moveField(f.id, -1)} disabled={idx === 0}
+                    style={{ background: 'none', border: 'none', cursor: idx === 0 ? 'not-allowed' : 'pointer', color: idx === 0 ? 'rgba(196,181,253,0.2)' : '#8b5cf6', padding: 0, lineHeight: 1 }}>
+                    <ChevronUp size={12} />
+                  </button>
+                  <button onClick={() => moveField(f.id, 1)} disabled={idx === fields.length - 1}
+                    style={{ background: 'none', border: 'none', cursor: idx === fields.length - 1 ? 'not-allowed' : 'pointer', color: idx === fields.length - 1 ? 'rgba(196,181,253,0.2)' : '#8b5cf6', padding: 0, lineHeight: 1 }}>
+                    <ChevronDown size={12} />
+                  </button>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm text-white font-semibold">{f.label}</span>
+                  <span className="ml-2 text-xs text-rb-light/40">{f.type}</span>
+                  {f.required && <span className="ml-2 text-xs" style={{ color: '#ef4444' }}>*</span>}
+                  {f.placeholder && (
+                    <span className="ml-2 text-xs text-rb-light/25 truncate hidden sm:inline">"{f.placeholder}"</span>
+                  )}
+                </div>
+                <button onClick={() => openEdit(f)}
+                  className="rb-btn-outline text-xs px-2 py-1 rounded"
+                  style={{ fontFamily: 'Fredoka One, sans-serif', display: 'inline-flex', alignItems: 'center', gap: '0.2rem', cursor: 'pointer', fontSize: '0.7rem' }}>
+                  <Pencil size={11} />
+                </button>
+                <button onClick={() => removeField(f.id)}
+                  className="text-xs px-2 py-1 rounded"
+                  style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.2rem', fontSize: '0.7rem' }}>
+                  <Trash2 size={11} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {addOpen && (
+          <div className="rounded-lg p-4 mb-4 space-y-3"
+            style={{ background: 'rgba(109,40,217,0.1)', border: '1px solid rgba(109,40,217,0.35)' }}>
+            <h5 className="text-white text-sm font-display">{editingField ? 'Feld bearbeiten' : 'Neues Feld'}</h5>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-rb-light/50 text-xs mb-1">Label *</label>
+                <AdminInput placeholder="z.B. Dein Name" value={fieldForm.label}
+                  onChange={(e) => setFieldForm((f) => ({ ...f, label: e.target.value }))} />
+              </div>
+              <div>
+                <label className="block text-rb-light/50 text-xs mb-1">Typ</label>
+                <AdminSelect value={fieldForm.type}
+                  onChange={(e) => setFieldForm((f) => ({ ...f, type: e.target.value as ContactFormField['type'] }))}>
+                  {(Object.entries(typeLabels) as [ContactFormField['type'], string][]).map(([val, lbl]) => (
+                    <option key={val} value={val}>{lbl}</option>
+                  ))}
+                </AdminSelect>
+              </div>
+            </div>
+            <div>
+              <label className="block text-rb-light/50 text-xs mb-1">Platzhaltertext</label>
+              <AdminInput placeholder="z.B. Dein Name…" value={fieldForm.placeholder}
+                onChange={(e) => setFieldForm((f) => ({ ...f, placeholder: e.target.value }))} />
+            </div>
+            {(fieldForm.type === 'select' || fieldForm.type === 'checkbox') && (
+              <div>
+                <label className="block text-rb-light/50 text-xs mb-1">Optionen (kommagetrennt)</label>
+                <AdminInput placeholder="Option A, Option B, Option C" value={optionsRaw}
+                  onChange={(e) => setOptionsRaw(e.target.value)} />
+              </div>
+            )}
+            <label className="flex items-center gap-2 cursor-pointer text-sm text-rb-light/60">
+              <input type="checkbox" checked={fieldForm.required}
+                onChange={(e) => setFieldForm((f) => ({ ...f, required: e.target.checked }))}
+                style={{ accentColor: '#8b5cf6', width: '14px', height: '14px' }} />
+              Pflichtfeld
+            </label>
+            <div className="flex gap-2">
+              <button onClick={saveField} className="rb-btn text-xs py-1.5 px-4">
+                {editingField ? 'Aktualisieren' : 'Hinzufügen'}
+              </button>
+              <button onClick={cancel}
+                className="rb-btn-outline text-xs py-1.5 px-3"
+                style={{ fontFamily: 'Fredoka One, sans-serif', display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}>
+                Abbrechen
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="flex items-center gap-2 flex-wrap">
+          {!addOpen && (
+            <button onClick={openAdd} className="rb-btn text-xs py-1.5 px-3 inline-flex items-center gap-1.5">
+              <Plus size={13} /> Feld hinzufügen
+            </button>
+          )}
+          <button onClick={saveAll} disabled={saving}
+            className="rb-btn text-xs py-1.5 px-4"
+            style={{ background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.4)', color: '#22c55e' }}>
+            {saving ? 'Speichern…' : 'Speichern & veröffentlichen'}
+          </button>
+        </div>
+      </div>
+
+      {/* Live preview */}
+      <div className="rb-panel p-5" style={{ border: '1px solid rgba(109,40,217,0.2)' }}>
+        <h3 className="text-white font-display text-sm mb-4 flex items-center gap-2">
+          <Eye size={15} style={{ color: '#8b5cf6' }} /> Vorschau
+        </h3>
+        <div className="space-y-3 opacity-70 pointer-events-none">
+          {fields.length === 0 ? (
+            <p className="text-rb-light/30 text-xs text-center py-4">Keine Felder definiert.</p>
+          ) : (
+            (() => {
+              const sorted = [...fields].sort((a, b) => a.order - b.order)
+              const pairedFirst =
+                sorted.length >= 2 &&
+                ['text', 'email'].includes(sorted[0].type) &&
+                ['text', 'email'].includes(sorted[1].type)
+              return (
+                <>
+                  {pairedFirst && (
+                    <div className="grid grid-cols-2 gap-3">
+                      {[sorted[0], sorted[1]].map((f) => (
+                        <div key={f.id}>
+                          <label className="text-rb-light/40 text-xs font-semibold tracking-widest uppercase block mb-1">
+                            {f.label}{f.required && <span className="text-red-400 ml-0.5">*</span>}
+                          </label>
+                          <div className="w-full bg-rb-panel/60 border-2 border-rb-border/50 rounded-xl px-3 py-2 text-xs text-rb-light/20">
+                            {f.placeholder || '…'}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {(pairedFirst ? sorted.slice(2) : sorted).map((f) => (
+                    <div key={f.id}>
+                      <label className="text-rb-light/40 text-xs font-semibold tracking-widest uppercase block mb-1">
+                        {f.label}{f.required && <span className="text-red-400 ml-0.5">*</span>}
+                      </label>
+                      <div
+                        className="w-full bg-rb-panel/60 border-2 border-rb-border/50 rounded-xl px-3 py-2 text-xs text-rb-light/20"
+                        style={{ minHeight: f.type === 'textarea' ? '70px' : undefined }}
+                      >
+                        {f.type === 'select' && f.options.length > 0
+                          ? `${f.options[0]} ▾`
+                          : f.placeholder || '…'}
+                      </div>
+                    </div>
+                  ))}
+                </>
+              )
+            })()
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Sidebar Nav ──────────────────────────────────────────────────────────────
 
 interface NavItem {
@@ -2199,6 +2484,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'users', label: 'Users', icon: <Users size={18} /> },
   { id: 'announcements', label: 'Announcements', icon: <Megaphone size={18} /> },
   { id: 'games', label: 'Games', icon: <Gamepad2 size={18} /> },
+  { id: 'contact-form', label: 'Kontaktformular', icon: <Mail size={18} /> },
   { id: 'team', label: 'Team', icon: <Code2 size={18} /> },
   { id: 'positions', label: 'Positionen', icon: <Briefcase size={18} /> },
   { id: 'applications', label: 'Bewerbungen', icon: <ClipboardList size={18} /> },
@@ -2221,6 +2507,7 @@ export default function AdminPage() {
   const [positions, setPositions] = useState<Position[]>([])
   const [applications, setApplications] = useState<Application[]>([])
   const [highlightedApplicationId, setHighlightedApplicationId] = useState<string | null>(null)
+  const [contactFormFields, setContactFormFields] = useState<ContactFormField[]>([])
   const [loading, setLoading] = useState(true)
 
   const user = session?.user as any
@@ -2246,13 +2533,14 @@ export default function AdminPage() {
   const fetchAll = useCallback(async () => {
     setLoading(true)
     try {
-      const [uRes, aRes, gRes, tRes, pRes, appRes] = await Promise.all([
+      const [uRes, aRes, gRes, tRes, pRes, appRes, cfRes] = await Promise.all([
         fetch('/api/admin/users'),
         fetch('/api/admin/announcements'),
         fetch('/api/admin/games'),
         fetch('/api/admin/team'),
         fetch('/api/admin/positions'),
         fetch('/api/admin/applications'),
+        fetch('/api/admin/contact-form'),
       ])
       if (uRes.ok) { const d = await uRes.json(); setUsers(d.users ?? []) }
       if (aRes.ok) { const d = await aRes.json(); setAnnouncements(d.announcements ?? []) }
@@ -2260,6 +2548,7 @@ export default function AdminPage() {
       if (tRes.ok) { const d = await tRes.json(); setTeamMembers(d.members ?? []) }
       if (pRes.ok) { const d = await pRes.json(); setPositions(d.positions ?? []) }
       if (appRes.ok) { const d = await appRes.json(); setApplications(d.applications ?? []) }
+      if (cfRes.ok) { const d = await cfRes.json(); setContactFormFields(d.fields ?? []) }
     } catch {
       showToast('Failed to load data', 'error')
     } finally {
@@ -2366,6 +2655,7 @@ export default function AdminPage() {
             if (item.id === 'users') return hasPermission(myRole, 'manageUsers')
             if (item.id === 'announcements') return hasPermission(myRole, 'manageAnnouncements')
             if (item.id === 'games') return hasPermission(myRole, 'manageGames')
+            if (item.id === 'contact-form') return hasPermission(myRole, 'manageContactForm')
             return myRole === 'founder'
           }).map((item) => {
             const isActive = activeTab === item.id
@@ -2442,6 +2732,13 @@ export default function AdminPage() {
               {activeTab === 'games' && (
                 <GamesTab
                   games={games}
+                  onRefresh={fetchAll}
+                  showToast={showToast}
+                />
+              )}
+              {activeTab === 'contact-form' && (
+                <ContactFormTab
+                  fields={contactFormFields}
                   onRefresh={fetchAll}
                   showToast={showToast}
                 />

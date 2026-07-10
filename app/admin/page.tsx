@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { getRoleMeta, ROLE_HIERARCHY, type Role } from '@/lib/roles'
+import { getRoleMeta, ROLE_HIERARCHY, hasPermission, canManage, type Role } from '@/lib/roles'
 import {
   LayoutDashboard, Users, Megaphone, Gamepad2, Code2,
   Crown, ArrowLeft, Search, User, Pencil, Trash2,
@@ -295,9 +295,10 @@ function OverviewTab({ users, announcements, games, applications }: {
 
 // ─── Users Tab ────────────────────────────────────────────────────────────────
 
-function UsersTab({ users, myDiscordId, onRefresh, showToast }: {
+function UsersTab({ users, myDiscordId, myRole, onRefresh, showToast }: {
   users: AdminUser[]
   myDiscordId: string
+  myRole: Role
   onRefresh: () => void
   showToast: (msg: string, type?: 'success' | 'error') => void
 }) {
@@ -435,16 +436,16 @@ function UsersTab({ users, myDiscordId, onRefresh, showToast }: {
                       </td>
                       {/* Role dropdown */}
                       <td className="px-4 py-3">
-                        {isMe ? (
+                        {isMe || !canManage(myRole, u.role) ? (
                           <RoleBadge role={u.role} />
                         ) : (
                           <AdminSelect
                             value={u.role}
-                            disabled={isLoading || isMe}
+                            disabled={isLoading}
                             onChange={(e) => changeRole(u._id, e.target.value as Role)}
                             style={{ width: 'auto', minWidth: '110px', fontSize: '0.8rem', padding: '0.3rem 0.5rem' }}
                           >
-                            {ROLE_HIERARCHY.map((r) => (
+                            {ROLE_HIERARCHY.filter((r) => canManage(myRole, r) || r === u.role).map((r) => (
                               <option key={r} value={r} style={{ background: '#140025', color: getRoleMeta(r).color }}>
                                 {getRoleMeta(r).label}
                               </option>
@@ -460,7 +461,7 @@ function UsersTab({ users, myDiscordId, onRefresh, showToast }: {
                       </td>
                       {/* Actions */}
                       <td className="px-4 py-3">
-                        {!isMe && (
+                        {!isMe && canManage(myRole, u.role) && (
                           <button
                             onClick={() => deleteUser(u._id, u.name)}
                             disabled={isLoading}
@@ -2224,11 +2225,12 @@ export default function AdminPage() {
 
   const user = session?.user as any
   const myDiscordId = user?.discordId as string ?? ''
+  const myRole = (user?.role ?? 'user') as Role
 
-  // Redirect if not founder (client-side safety net — server layout already handles it)
+  // Redirect if no admin access (client-side safety net — server layout already handles it)
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/')
-    if (status === 'authenticated' && user?.role !== 'founder') router.push('/')
+    if (status === 'authenticated' && !hasPermission(user?.role as Role, 'viewAdminPanel')) router.push('/')
   }, [status, user, router])
 
   // Handle ?bewerbung=ID URL param
@@ -2271,7 +2273,7 @@ export default function AdminPage() {
   }, [activeTab, status, fetchAll])
 
   if (status === 'loading') return <AdminSkeleton />
-  if (!session || user?.role !== 'founder') return null
+  if (!session || !hasPermission(user?.role as Role, 'viewAdminPanel')) return null
 
   return (
     <div className="min-h-screen hex-bg flex flex-col" style={{ background: '#08010f' }}>
@@ -2307,9 +2309,9 @@ export default function AdminPage() {
           <div className="flex items-center gap-3">
             <span
               className="rb-badge hidden sm:inline-flex items-center gap-1"
-              style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.4)', fontSize: '0.65rem' }}
+              style={{ background: getRoleMeta(myRole).bg, color: getRoleMeta(myRole).color, border: `1px solid ${getRoleMeta(myRole).border}`, fontSize: '0.65rem' }}
             >
-              <Crown size={12} /> Founder
+              {myRole === 'founder' ? <Crown size={12} /> : <Shield size={12} />} {getRoleMeta(myRole).label}
             </span>
             {user?.image && (
               <Image
@@ -2359,7 +2361,13 @@ export default function AdminPage() {
           <p className="text-xs text-rb-light/25 uppercase tracking-widest font-semibold px-3 mb-2">
             Navigation
           </p>
-          {NAV_ITEMS.map((item) => {
+          {NAV_ITEMS.filter((item) => {
+            if (item.id === 'overview') return hasPermission(myRole, 'viewAdminPanel')
+            if (item.id === 'users') return hasPermission(myRole, 'manageUsers')
+            if (item.id === 'announcements') return hasPermission(myRole, 'manageAnnouncements')
+            if (item.id === 'games') return hasPermission(myRole, 'manageGames')
+            return myRole === 'founder'
+          }).map((item) => {
             const isActive = activeTab === item.id
             return (
               <button
@@ -2418,6 +2426,7 @@ export default function AdminPage() {
                 <UsersTab
                   users={users}
                   myDiscordId={myDiscordId}
+                  myRole={myRole}
                   onRefresh={fetchAll}
                   showToast={showToast}
                 />

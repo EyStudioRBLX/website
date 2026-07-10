@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireFounder } from '@/lib/adminGuard'
+import { requirePermission } from '@/lib/adminGuard'
 import { connectDB } from '@/lib/mongodb'
 import { Announcement } from '@/lib/models/Announcement'
 
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
-  const guard = await requireFounder()
+  const guard = await requirePermission('manageAnnouncements')
   if ('error' in guard) return guard.error
 
   const { id } = params
@@ -18,7 +18,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
-  const guard = await requireFounder()
+  const guard = await requirePermission('manageAnnouncements')
   if ('error' in guard) return guard.error
 
   const { id } = params

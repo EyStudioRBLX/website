@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireFounder } from '@/lib/adminGuard'
+import { requirePermission } from '@/lib/adminGuard'
 import { connectDB } from '@/lib/mongodb'
 import { User } from '@/lib/models/User'
 import { canManage, type Role } from '@/lib/roles'
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const guard = await requireFounder()
+  const guard = await requirePermission('manageUsers')
   if ('error' in guard) return guard.error
 
-  const { id } = params
+  const { id, role: actorRole } = { id: params.id, role: guard.role }
   const body = await req.json()
   const { role } = body as { role: Role }
 
@@ -16,27 +16,26 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     return NextResponse.json({ error: 'role is required' }, { status: 400 })
   }
 
-  if (!canManage('founder', role)) {
+  await connectDB()
+  const target = await User.findById(id)
+  if (!target) return NextResponse.json({ error: 'User not found' }, { status: 404 })
+
+  if (!canManage(actorRole, target.role as Role) || !canManage(actorRole, role)) {
     return NextResponse.json({ error: 'Cannot assign that role' }, { status: 403 })
   }
 
-  await connectDB()
-  const user = await User.findById(id)
-  if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 })
+  target.role = role
+  await target.save()
 
-  // Founders can't downgrade other founders unless they are the only founder
-  user.role = role
-  await user.save()
-
-  return NextResponse.json({ user })
+  return NextResponse.json({ user: target })
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
-  const guard = await requireFounder()
+  const guard = await requirePermission('manageUsers')
   if ('error' in guard) return guard.error
 
   const { id } = params
-  const { discordId: actorDiscordId } = guard
+  const { discordId: actorDiscordId, role: actorRole } = guard
 
   await connectDB()
   const user = await User.findById(id)
@@ -44,6 +43,10 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
 
   if (user.discordId === actorDiscordId) {
     return NextResponse.json({ error: "You can't delete yourself" }, { status: 400 })
+  }
+
+  if (!canManage(actorRole, user.role as Role)) {
+    return NextResponse.json({ error: 'Cannot delete a user with equal or higher role' }, { status: 403 })
   }
 
   await User.findByIdAndDelete(id)

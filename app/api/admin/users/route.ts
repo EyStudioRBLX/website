@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server'
-import { requireFounder } from '@/lib/adminGuard'
+import { requirePermission } from '@/lib/adminGuard'
 import { connectDB } from '@/lib/mongodb'
 import { User } from '@/lib/models/User'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
-  const guard = await requireFounder()
+  const guard = await requirePermission('manageUsers')
   if ('error' in guard) return guard.error
 
   await connectDB()

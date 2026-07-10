@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireFounder } from '@/lib/adminGuard'
+import { requirePermission } from '@/lib/adminGuard'
 import { connectDB } from '@/lib/mongodb'
 import { Announcement } from '@/lib/models/Announcement'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
-  const guard = await requireFounder()
+  const guard = await requirePermission('manageAnnouncements')
   if ('error' in guard) return guard.error
 
   await connectDB()
@@ -15,7 +15,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const guard = await requireFounder()
+  const guard = await requirePermission('manageAnnouncements')
   if ('error' in guard) return guard.error
 
   const { discordId } = guard

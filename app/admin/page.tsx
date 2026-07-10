@@ -12,6 +12,7 @@ import {
   Clock, CalendarPlus, ExternalLink, Eye, Heart,
   CheckCircle2, XCircle, Shield, Map, Settings2, HeartHandshake,
   Briefcase, ClipboardList, ChevronDown, ChevronUp, Plus, GripVertical,
+  MessageSquare, Send,
 } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -109,6 +110,15 @@ interface Application {
   responses: AppResponse[]
   status: 'pending' | 'accepted' | 'rejected'
   appliedAt: string
+}
+
+interface AppMessage {
+  _id: string
+  direction: 'admin' | 'user'
+  content: string
+  authorName: string
+  timestamp: string
+  read: boolean
 }
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
@@ -1951,6 +1961,43 @@ function BewerbungenTab({ applications, onRefresh, showToast, highlightedId }: {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [loadingId, setLoadingId] = useState<string | null>(null)
   const highlightRef = useRef<HTMLDivElement | null>(null)
+  const [chatOpenId, setChatOpenId] = useState<string | null>(null)
+  const [messages, setMessages] = useState<AppMessage[]>([])
+  const [chatLoading, setChatLoading] = useState(false)
+  const [chatInput, setChatInput] = useState('')
+  const [chatSending, setChatSending] = useState(false)
+  const chatBottomRef = useRef<HTMLDivElement | null>(null)
+
+  async function openChat(appId: string) {
+    if (chatOpenId === appId) { setChatOpenId(null); return }
+    setChatOpenId(appId)
+    setChatLoading(true)
+    try {
+      const res = await fetch(`/api/applications/${appId}/messages`)
+      if (res.ok) { const d = await res.json(); setMessages(d.messages ?? []) }
+    } catch { /* ignore */ } finally { setChatLoading(false) }
+  }
+
+  async function sendMessage(appId: string) {
+    if (!chatInput.trim() || chatSending) return
+    setChatSending(true)
+    try {
+      const res = await fetch(`/api/applications/${appId}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: chatInput.trim() }),
+      })
+      if (res.ok) {
+        const d = await res.json()
+        setMessages((prev) => [...prev, d.message])
+        setChatInput('')
+        setTimeout(() => chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
+      } else {
+        const d = await res.json()
+        showToast(d.error ?? 'Fehler beim Senden', 'error')
+      }
+    } catch { showToast('Netzwerkfehler', 'error') } finally { setChatSending(false) }
+  }
 
   const filtered = applications.filter((a) => filter === 'all' || a.status === filter)
 
@@ -2147,44 +2194,162 @@ function BewerbungenTab({ applications, onRefresh, showToast, highlightedId }: {
                 )}
 
                 {/* Action buttons — only if pending */}
-                {app.status === 'pending' && (
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => decide(app._id, 'accepted')}
-                      disabled={isLoading}
-                      className="text-xs px-4 py-1.5 rounded-lg"
-                      style={{
-                        background: 'rgba(34,197,94,0.1)',
-                        border: '1px solid rgba(34,197,94,0.35)',
-                        color: '#22c55e',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '0.3rem',
-                        cursor: isLoading ? 'not-allowed' : 'pointer',
-                        fontFamily: 'Fredoka One, sans-serif',
-                        transition: 'all 0.15s',
-                      }}
+                <div className="flex gap-2 flex-wrap">
+                  {app.status === 'pending' && (
+                    <>
+                      <button
+                        onClick={() => decide(app._id, 'accepted')}
+                        disabled={isLoading}
+                        className="text-xs px-4 py-1.5 rounded-lg"
+                        style={{
+                          background: 'rgba(34,197,94,0.1)',
+                          border: '1px solid rgba(34,197,94,0.35)',
+                          color: '#22c55e',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.3rem',
+                          cursor: isLoading ? 'not-allowed' : 'pointer',
+                          fontFamily: 'Fredoka One, sans-serif',
+                          transition: 'all 0.15s',
+                        }}
+                      >
+                        <CheckCircle2 size={13} /> Annehmen
+                      </button>
+                      <button
+                        onClick={() => decide(app._id, 'rejected')}
+                        disabled={isLoading}
+                        className="text-xs px-4 py-1.5 rounded-lg"
+                        style={{
+                          background: 'rgba(239,68,68,0.08)',
+                          border: '1px solid rgba(239,68,68,0.35)',
+                          color: '#ef4444',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.3rem',
+                          cursor: isLoading ? 'not-allowed' : 'pointer',
+                          fontFamily: 'Fredoka One, sans-serif',
+                          transition: 'all 0.15s',
+                        }}
+                      >
+                        <XCircle size={13} /> Ablehnen
+                      </button>
+                    </>
+                  )}
+                  <button
+                    onClick={() => openChat(app._id)}
+                    className="text-xs px-4 py-1.5 rounded-lg"
+                    style={{
+                      background: chatOpenId === app._id ? 'rgba(109,40,217,0.25)' : 'rgba(109,40,217,0.08)',
+                      border: `1px solid ${chatOpenId === app._id ? 'rgba(109,40,217,0.6)' : 'rgba(109,40,217,0.3)'}`,
+                      color: '#c4b5fd',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.3rem',
+                      cursor: 'pointer',
+                      fontFamily: 'Fredoka One, sans-serif',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    <MessageSquare size={13} /> Anschreiben
+                  </button>
+                </div>
+
+                {/* Chat panel */}
+                {chatOpenId === app._id && (
+                  <div
+                    className="mt-3 rounded-lg overflow-hidden"
+                    style={{ border: '1px solid rgba(109,40,217,0.25)', background: 'rgba(109,40,217,0.04)' }}
+                  >
+                    {/* Messages */}
+                    <div
+                      className="p-3 space-y-2 overflow-y-auto"
+                      style={{ maxHeight: '260px' }}
                     >
-                      <CheckCircle2 size={13} /> Annehmen
-                    </button>
-                    <button
-                      onClick={() => decide(app._id, 'rejected')}
-                      disabled={isLoading}
-                      className="text-xs px-4 py-1.5 rounded-lg"
-                      style={{
-                        background: 'rgba(239,68,68,0.08)',
-                        border: '1px solid rgba(239,68,68,0.35)',
-                        color: '#ef4444',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '0.3rem',
-                        cursor: isLoading ? 'not-allowed' : 'pointer',
-                        fontFamily: 'Fredoka One, sans-serif',
-                        transition: 'all 0.15s',
-                      }}
+                      {chatLoading ? (
+                        <p className="text-xs text-rb-light/30 text-center py-4">Laden…</p>
+                      ) : messages.length === 0 ? (
+                        <p className="text-xs text-rb-light/30 text-center py-4">
+                          Noch keine Nachrichten. Schreib dem Bewerber!
+                        </p>
+                      ) : (
+                        messages.map((msg) => (
+                          <div
+                            key={msg._id}
+                            className={`flex ${msg.direction === 'admin' ? 'justify-end' : 'justify-start'}`}
+                          >
+                            <div
+                              className="max-w-[80%] rounded-xl px-3 py-2"
+                              style={{
+                                background: msg.direction === 'admin'
+                                  ? 'rgba(109,40,217,0.3)'
+                                  : 'rgba(255,255,255,0.06)',
+                                border: msg.direction === 'admin'
+                                  ? '1px solid rgba(109,40,217,0.5)'
+                                  : '1px solid rgba(255,255,255,0.08)',
+                              }}
+                            >
+                              <p className="text-xs font-semibold mb-0.5"
+                                style={{ color: msg.direction === 'admin' ? '#c4b5fd' : '#94a3b8' }}>
+                                {msg.direction === 'admin' ? `Staff · ${msg.authorName}` : app.applicantName}
+                              </p>
+                              <p className="text-sm text-white/85 leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                              <p className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.25)' }}>
+                                {new Date(msg.timestamp).toLocaleString('de-DE', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                              </p>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                      <div ref={chatBottomRef} />
+                    </div>
+
+                    {/* Input */}
+                    <div
+                      className="flex gap-2 p-2"
+                      style={{ borderTop: '1px solid rgba(109,40,217,0.2)' }}
                     >
-                      <XCircle size={13} /> Ablehnen
-                    </button>
+                      <input
+                        value={chatInput}
+                        onChange={(e) => setChatInput(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(app._id) } }}
+                        placeholder="Nachricht schreiben…"
+                        disabled={chatSending}
+                        style={{
+                          flex: 1,
+                          background: 'rgba(109,40,217,0.1)',
+                          border: '1px solid rgba(109,40,217,0.3)',
+                          borderRadius: '8px',
+                          padding: '0.45rem 0.7rem',
+                          color: '#c4b5fd',
+                          outline: 'none',
+                          fontFamily: 'Nunito, sans-serif',
+                          fontSize: '0.8rem',
+                        }}
+                      />
+                      <button
+                        onClick={() => sendMessage(app._id)}
+                        disabled={chatSending || !chatInput.trim()}
+                        style={{
+                          background: 'rgba(109,40,217,0.3)',
+                          border: '1px solid rgba(109,40,217,0.5)',
+                          borderRadius: '8px',
+                          padding: '0.45rem 0.75rem',
+                          color: '#c4b5fd',
+                          cursor: chatSending || !chatInput.trim() ? 'not-allowed' : 'pointer',
+                          opacity: chatSending || !chatInput.trim() ? 0.5 : 1,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.3rem',
+                          fontFamily: 'Fredoka One, sans-serif',
+                          fontSize: '0.75rem',
+                          transition: 'all 0.15s',
+                        }}
+                      >
+                        {chatSending
+                          ? <span className="animate-spin inline-block w-3.5 h-3.5 border-2 border-rb-purple/30 border-t-rb-purple rounded-full" />
+                          : <Send size={13} />}
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>

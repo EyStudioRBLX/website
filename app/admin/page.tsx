@@ -90,6 +90,7 @@ interface Position {
   description: string
   requirements: string
   gameName: string
+  guidelines: string[]
   status: 'open' | 'closed'
   fields: FormField[]
 }
@@ -1445,6 +1446,7 @@ interface PositionForm {
   description: string
   requirements: string
   gameName: string
+  guidelines: string[]
   status: 'open' | 'closed'
 }
 
@@ -1453,6 +1455,7 @@ const EMPTY_POS_FORM: PositionForm = {
   description: '',
   requirements: '',
   gameName: '',
+  guidelines: [],
   status: 'open',
 }
 
@@ -1706,6 +1709,7 @@ function PositionenTab({ positions, onRefresh, showToast }: {
       description: p.description,
       requirements: p.requirements,
       gameName: p.gameName,
+      guidelines: p.guidelines ?? [],
       status: p.status,
     })
     setFormOpen(true)
@@ -1816,6 +1820,20 @@ function PositionenTab({ positions, onRefresh, showToast }: {
                 value={form.requirements}
                 onChange={(e) => setForm((f) => ({ ...f, requirements: e.target.value }))}
                 style={{ minHeight: '70px' }}
+              />
+            </div>
+            <div>
+              <label className="block text-rb-light/60 text-sm mb-1">
+                Richtlinien <span className="text-rb-light/30 font-normal">(optional, eine pro Zeile)</span>
+              </label>
+              <AdminTextarea
+                placeholder={"Nicht nach dem Status der Bewerbung fragen\nBewerbungen werden innerhalb von 7 Tagen bearbeitet"}
+                value={form.guidelines.join('\n')}
+                onChange={(e) => setForm((f) => ({
+                  ...f,
+                  guidelines: e.target.value.split('\n').map((l) => l.trim()).filter(Boolean),
+                }))}
+                style={{ minHeight: '80px' }}
               />
             </div>
             <div>

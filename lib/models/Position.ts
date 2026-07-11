@@ -15,6 +15,7 @@ export interface IPosition extends Document {
   description: string
   requirements: string
   gameName: string
+  guidelines: string[]
   status: 'open' | 'closed'
   fields: FormField[]
   createdAt: Date
@@ -40,6 +41,7 @@ const PositionSchema = new Schema<IPosition>(
     description: { type: String, required: true },
     requirements: { type: String, default: '' },
     gameName: { type: String, default: '' },
+    guidelines: { type: [String], default: [] },
     status: { type: String, enum: ['open', 'closed'], default: 'open' },
     fields: { type: [FormFieldSchema], default: [] },
   },

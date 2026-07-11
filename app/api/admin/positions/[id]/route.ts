@@ -17,6 +17,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       description?: string
       requirements?: string
       gameName?: string
+      guidelines?: string[]
       status?: 'open' | 'closed'
       fields?: Array<{
         id: string
@@ -36,6 +37,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         ...(body.description !== undefined && { description: body.description.trim() }),
         ...(body.requirements !== undefined && { requirements: body.requirements.trim() }),
         ...(body.gameName !== undefined && { gameName: body.gameName.trim() }),
+        ...(body.guidelines !== undefined && { guidelines: body.guidelines }),
         ...(body.status !== undefined && { status: body.status }),
         ...(body.fields !== undefined && { fields: body.fields }),
       },

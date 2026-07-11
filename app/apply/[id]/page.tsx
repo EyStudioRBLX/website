@@ -14,6 +14,7 @@ interface Position {
   description: string
   requirements: string
   gameName: string
+  guidelines: string[]
   status: 'open' | 'closed'
   fields: FormField[]
 }
@@ -481,6 +482,25 @@ export default function ApplyDetailPage() {
                 Anforderungen
               </p>
               <p className="text-sm text-rb-light/55 leading-relaxed">{position.requirements}</p>
+            </div>
+          )}
+
+          {position.guidelines && position.guidelines.length > 0 && (
+            <div
+              className="rounded-lg p-3"
+              style={{ background: 'rgba(234,179,8,0.06)', border: '1px solid rgba(234,179,8,0.25)' }}
+            >
+              <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'rgba(234,179,8,0.7)' }}>
+                Richtlinien
+              </p>
+              <ul className="space-y-1.5">
+                {position.guidelines.map((g, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm" style={{ color: 'rgba(253,230,138,0.7)' }}>
+                    <span className="mt-0.5 shrink-0" style={{ color: 'rgba(234,179,8,0.6)' }}>•</span>
+                    {g}
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
         </div>

@@ -29,6 +29,7 @@ export async function POST(req: NextRequest) {
       description: string
       requirements?: string
       gameName?: string
+      guidelines?: string[]
       status?: 'open' | 'closed'
     }
 
@@ -41,6 +42,7 @@ export async function POST(req: NextRequest) {
       description: body.description.trim(),
       requirements: body.requirements?.trim() ?? '',
       gameName: body.gameName?.trim() ?? '',
+      guidelines: body.guidelines ?? [],
       status: body.status ?? 'open',
     })
 

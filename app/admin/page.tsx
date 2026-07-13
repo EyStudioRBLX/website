@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { getRoleMeta, ROLE_HIERARCHY, hasPermission, canManage, type Role } from '@/lib/roles'
+import { getRoleMeta, ROLE_HIERARCHY, hasPermission, canManage, ALL_PERMISSION_KEYS, PERMISSION_LABELS, type Role } from '@/lib/roles'
 import {
   LayoutDashboard, Users, Megaphone, Gamepad2, Code2, Mail,
   Crown, ArrowLeft, Search, User, Pencil, Trash2,
@@ -23,7 +23,7 @@ interface AdminUser {
   name: string
   email: string | null
   image: string | null
-  role: Role
+  role: string
   joinedAt: string
   lastSeen: string
   stats: { loginCount: number; messagesent: number }
@@ -62,7 +62,7 @@ interface TeamMember {
   order: number
 }
 
-type Tab = 'overview' | 'users' | 'announcements' | 'games' | 'team' | 'positions' | 'applications' | 'contact-form'
+type Tab = 'overview' | 'users' | 'announcements' | 'games' | 'team' | 'positions' | 'applications' | 'contact-form' | 'roles'
 
 interface ContactFormField {
   id: string
@@ -111,6 +111,15 @@ interface Application {
   responses: AppResponse[]
   status: 'pending' | 'accepted' | 'rejected'
   appliedAt: string
+}
+
+interface CustomRole {
+  _id: string
+  name: string
+  displayName: string
+  color: string
+  permissions: string[]
+  createdBy: string
 }
 
 interface AppMessage {
@@ -219,14 +228,30 @@ const ROLE_ICON_MAP: Record<string, React.ReactNode> = {
   user: <User size={11} />,
 }
 
-function RoleBadge({ role }: { role: Role }) {
+function RoleBadge({ role, customRoles }: { role: string; customRoles?: CustomRole[] }) {
+  const customRole = customRoles?.find((cr) => cr.name === role)
+  if (customRole) {
+    return (
+      <span
+        className="rb-badge"
+        style={{
+          background: `${customRole.color}22`,
+          color: customRole.color,
+          border: `1px solid ${customRole.color}55`,
+          fontSize: '0.65rem',
+        }}
+      >
+        {customRole.displayName}
+      </span>
+    )
+  }
   const meta = getRoleMeta(role)
   return (
     <span
       className="rb-badge"
       style={{ background: meta.bg, color: meta.color, border: `1px solid ${meta.border}`, fontSize: '0.65rem' }}
     >
-      {ROLE_ICON_MAP[role]} {meta.label}
+      {ROLE_ICON_MAP[role as Role]} {meta.label}
     </span>
   )
 }
@@ -316,10 +341,11 @@ function OverviewTab({ users, announcements, games, applications }: {
 
 // ─── Users Tab ────────────────────────────────────────────────────────────────
 
-function UsersTab({ users, myDiscordId, myRole, onRefresh, showToast }: {
+function UsersTab({ users, myDiscordId, myRole, customRoles, onRefresh, showToast }: {
   users: AdminUser[]
   myDiscordId: string
   myRole: Role
+  customRoles: CustomRole[]
   onRefresh: () => void
   showToast: (msg: string, type?: 'success' | 'error') => void
 }) {
@@ -458,7 +484,7 @@ function UsersTab({ users, myDiscordId, myRole, onRefresh, showToast }: {
                       {/* Role dropdown */}
                       <td className="px-4 py-3">
                         {isMe || !canManage(myRole, u.role) ? (
-                          <RoleBadge role={u.role} />
+                          <RoleBadge role={u.role} customRoles={customRoles} />
                         ) : (
                           <AdminSelect
                             value={u.role}
@@ -471,6 +497,15 @@ function UsersTab({ users, myDiscordId, myRole, onRefresh, showToast }: {
                                 {getRoleMeta(r).label}
                               </option>
                             ))}
+                            {customRoles.length > 0 && (
+                              <optgroup label="── Custom ──" style={{ background: '#140025', color: '#6d28d9' }}>
+                                {customRoles.map((cr) => (
+                                  <option key={cr._id} value={cr.name} style={{ background: '#140025', color: cr.color }}>
+                                    {cr.displayName}
+                                  </option>
+                                ))}
+                              </optgroup>
+                            )}
                           </AdminSelect>
                         )}
                       </td>
@@ -2654,6 +2689,305 @@ function ContactFormTab({ fields: initialFields, onRefresh, showToast }: {
   )
 }
 
+// ─── Roles Tab ────────────────────────────────────────────────────────────────
+
+function RolesTab({ customRoles, onRefresh, showToast }: {
+  customRoles: CustomRole[]
+  onRefresh: () => void
+  showToast: (msg: string, type?: 'success' | 'error') => void
+}) {
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+
+  const emptyForm = { name: '', displayName: '', color: '#6d28d9', permissions: [] as string[] }
+  const [form, setForm] = useState(emptyForm)
+  const [editForm, setEditForm] = useState<{ displayName: string; color: string; permissions: string[] } | null>(null)
+
+  function togglePerm(perms: string[], key: string): string[] {
+    return perms.includes(key) ? perms.filter((p) => p !== key) : [...perms, key]
+  }
+
+  async function createRole() {
+    if (!form.name.trim() || !form.displayName.trim()) {
+      showToast('Name und Anzeigename sind Pflichtfelder', 'error')
+      return
+    }
+    setSaving(true)
+    try {
+      const res = await fetch('/api/admin/roles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      })
+      const d = await res.json()
+      if (!res.ok) { showToast(d.error ?? 'Fehler', 'error'); return }
+      showToast(`Rolle "${d.role.displayName}" erstellt`)
+      setForm(emptyForm)
+      onRefresh()
+    } catch { showToast('Netzwerkfehler', 'error') }
+    finally { setSaving(false) }
+  }
+
+  async function saveEdit(id: string) {
+    if (!editForm) return
+    setSaving(true)
+    try {
+      const res = await fetch(`/api/admin/roles/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editForm),
+      })
+      const d = await res.json()
+      if (!res.ok) { showToast(d.error ?? 'Fehler', 'error'); return }
+      showToast('Rolle aktualisiert')
+      setEditingId(null)
+      onRefresh()
+    } catch { showToast('Netzwerkfehler', 'error') }
+    finally { setSaving(false) }
+  }
+
+  async function deleteRole(id: string, name: string) {
+    if (!confirm(`Rolle "${name}" löschen? Alle Nutzer werden auf "User" zurückgesetzt.`)) return
+    setSaving(true)
+    try {
+      const res = await fetch(`/api/admin/roles/${id}`, { method: 'DELETE' })
+      if (!res.ok) { const d = await res.json(); showToast(d.error ?? 'Fehler', 'error'); return }
+      showToast(`Rolle "${name}" gelöscht`)
+      onRefresh()
+    } catch { showToast('Netzwerkfehler', 'error') }
+    finally { setSaving(false) }
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Create new role */}
+      <div className="rb-panel p-5 space-y-4" style={{ transition: 'none' }}>
+        <h2 className="text-base text-white font-display flex items-center gap-2">
+          <Plus size={16} style={{ color: '#8b5cf6' }} /> Neue Rolle erstellen
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label className="text-xs text-rb-light/40 mb-1 block">Interner Name (slug)</label>
+            <AdminInput
+              placeholder="z.B. moderator"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="text-xs text-rb-light/40 mb-1 block">Anzeigename</label>
+            <AdminInput
+              placeholder="z.B. Moderator"
+              value={form.displayName}
+              onChange={(e) => setForm({ ...form, displayName: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="text-xs text-rb-light/40 mb-1 block">Farbe</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={form.color}
+                onChange={(e) => setForm({ ...form, color: e.target.value })}
+                style={{ width: '40px', height: '36px', border: 'none', background: 'none', cursor: 'pointer', padding: 0 }}
+              />
+              <AdminInput
+                value={form.color}
+                onChange={(e) => setForm({ ...form, color: e.target.value })}
+                style={{ fontFamily: 'monospace' }}
+              />
+            </div>
+          </div>
+        </div>
+        <div>
+          <label className="text-xs text-rb-light/40 mb-2 block">Berechtigungen</label>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {ALL_PERMISSION_KEYS.map((key) => {
+              const active = form.permissions.includes(key)
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setForm({ ...form, permissions: togglePerm(form.permissions, key) })}
+                  className="text-left px-3 py-2 rounded-lg text-xs transition-all"
+                  style={{
+                    background: active ? 'rgba(109,40,217,0.25)' : 'rgba(109,40,217,0.06)',
+                    border: `1px solid ${active ? 'rgba(109,40,217,0.6)' : 'rgba(109,40,217,0.2)'}`,
+                    color: active ? '#c4b5fd' : '#6d28d9',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {active ? '✓ ' : ''}{PERMISSION_LABELS[key]}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={createRole}
+            disabled={saving}
+            className="rb-btn text-sm px-4 py-2 font-display"
+            style={{ opacity: saving ? 0.5 : 1 }}
+          >
+            <Plus size={14} /> Rolle erstellen
+          </button>
+          {form.displayName && (
+            <span
+              className="rb-badge"
+              style={{
+                background: `${form.color}22`,
+                color: form.color,
+                border: `1px solid ${form.color}55`,
+                fontSize: '0.7rem',
+              }}
+            >
+              {form.displayName}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Existing custom roles */}
+      <div className="space-y-3">
+        {customRoles.length === 0 ? (
+          <div className="rb-panel p-8 text-center text-rb-light/30 text-sm" style={{ transition: 'none' }}>
+            Noch keine Custom Roles erstellt.
+          </div>
+        ) : (
+          customRoles.map((cr) => (
+            <div
+              key={cr._id}
+              className="rb-panel p-4"
+              style={{ transition: 'none', borderLeft: `3px solid ${cr.color}` }}
+            >
+              {editingId === cr._id && editForm ? (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-rb-light/40 mb-1 block">Anzeigename</label>
+                      <AdminInput
+                        value={editForm.displayName}
+                        onChange={(e) => setEditForm({ ...editForm, displayName: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-rb-light/40 mb-1 block">Farbe</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={editForm.color}
+                          onChange={(e) => setEditForm({ ...editForm, color: e.target.value })}
+                          style={{ width: '40px', height: '36px', border: 'none', background: 'none', cursor: 'pointer', padding: 0 }}
+                        />
+                        <AdminInput
+                          value={editForm.color}
+                          onChange={(e) => setEditForm({ ...editForm, color: e.target.value })}
+                          style={{ fontFamily: 'monospace' }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs text-rb-light/40 mb-2 block">Berechtigungen</label>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {ALL_PERMISSION_KEYS.map((key) => {
+                        const active = editForm.permissions.includes(key)
+                        return (
+                          <button
+                            key={key}
+                            type="button"
+                            onClick={() => setEditForm({ ...editForm, permissions: togglePerm(editForm.permissions, key) })}
+                            className="text-left px-3 py-2 rounded-lg text-xs transition-all"
+                            style={{
+                              background: active ? 'rgba(109,40,217,0.25)' : 'rgba(109,40,217,0.06)',
+                              border: `1px solid ${active ? 'rgba(109,40,217,0.6)' : 'rgba(109,40,217,0.2)'}`,
+                              color: active ? '#c4b5fd' : '#6d28d9',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {active ? '✓ ' : ''}{PERMISSION_LABELS[key]}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => saveEdit(cr._id)}
+                      disabled={saving}
+                      className="rb-btn text-xs px-3 py-1.5 font-display"
+                      style={{ opacity: saving ? 0.5 : 1 }}
+                    >
+                      Speichern
+                    </button>
+                    <button
+                      onClick={() => setEditingId(null)}
+                      className="rb-btn-outline text-xs px-3 py-1.5 font-display"
+                    >
+                      Abbrechen
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-2">
+                      <span
+                        className="rb-badge"
+                        style={{
+                          background: `${cr.color}22`,
+                          color: cr.color,
+                          border: `1px solid ${cr.color}55`,
+                          fontSize: '0.7rem',
+                        }}
+                      >
+                        {cr.displayName}
+                      </span>
+                      <span className="text-xs text-rb-light/30 font-mono">{cr.name}</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {cr.permissions.length === 0 ? (
+                        <span className="text-xs text-rb-light/20">Keine Berechtigungen</span>
+                      ) : (
+                        cr.permissions.map((p) => (
+                          <span
+                            key={p}
+                            className="text-xs px-2 py-0.5 rounded"
+                            style={{ background: 'rgba(109,40,217,0.15)', color: '#8b5cf6', border: '1px solid rgba(109,40,217,0.25)' }}
+                          >
+                            {PERMISSION_LABELS[p as keyof typeof PERMISSION_LABELS] ?? p}
+                          </span>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <button
+                      onClick={() => { setEditingId(cr._id); setEditForm({ displayName: cr.displayName, color: cr.color, permissions: [...cr.permissions] }) }}
+                      className="rb-btn-outline text-xs px-3 py-1.5 font-display flex items-center gap-1"
+                    >
+                      <Pencil size={12} /> Bearbeiten
+                    </button>
+                    <button
+                      onClick={() => deleteRole(cr._id, cr.displayName)}
+                      disabled={saving}
+                      className="rb-btn-outline text-xs px-3 py-1.5 font-display flex items-center gap-1"
+                      style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.35)', color: '#ef4444' }}
+                    >
+                      <Trash2 size={12} /> Löschen
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ─── Sidebar Nav ──────────────────────────────────────────────────────────────
 
 interface NavItem {
@@ -2662,7 +2996,7 @@ interface NavItem {
   icon: React.ReactNode
 }
 
-const NAV_ITEMS: NavItem[] = [
+const BASE_NAV_ITEMS: NavItem[] = [
   { id: 'overview', label: 'Overview', icon: <LayoutDashboard size={18} /> },
   { id: 'users', label: 'Users', icon: <Users size={18} /> },
   { id: 'announcements', label: 'Announcements', icon: <Megaphone size={18} /> },
@@ -2671,6 +3005,10 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'team', label: 'Team', icon: <Code2 size={18} /> },
   { id: 'positions', label: 'Positionen', icon: <Briefcase size={18} /> },
   { id: 'applications', label: 'Bewerbungen', icon: <ClipboardList size={18} /> },
+]
+
+const FOUNDER_NAV_ITEMS: NavItem[] = [
+  { id: 'roles', label: 'Rollen', icon: <Shield size={18} /> },
 ]
 
 // ─── Main Admin Page ──────────────────────────────────────────────────────────
@@ -2691,11 +3029,15 @@ export default function AdminPage() {
   const [applications, setApplications] = useState<Application[]>([])
   const [highlightedApplicationId, setHighlightedApplicationId] = useState<string | null>(null)
   const [contactFormFields, setContactFormFields] = useState<ContactFormField[]>([])
+  const [customRoles, setCustomRoles] = useState<CustomRole[]>([])
   const [loading, setLoading] = useState(true)
 
   const user = session?.user as any
   const myDiscordId = user?.discordId as string ?? ''
   const myRole = (user?.role ?? 'user') as Role
+  const NAV_ITEMS: NavItem[] = myRole === 'founder'
+    ? [...BASE_NAV_ITEMS, ...FOUNDER_NAV_ITEMS]
+    : BASE_NAV_ITEMS
 
   // Redirect if no admin access (client-side safety net — server layout already handles it)
   useEffect(() => {
@@ -2716,7 +3058,7 @@ export default function AdminPage() {
   const fetchAll = useCallback(async () => {
     setLoading(true)
     try {
-      const [uRes, aRes, gRes, tRes, pRes, appRes, cfRes] = await Promise.all([
+      const fetches: Promise<Response>[] = [
         fetch('/api/admin/users'),
         fetch('/api/admin/announcements'),
         fetch('/api/admin/games'),
@@ -2724,7 +3066,9 @@ export default function AdminPage() {
         fetch('/api/admin/positions'),
         fetch('/api/admin/applications'),
         fetch('/api/admin/contact-form'),
-      ])
+      ]
+      if (myRole === 'founder') fetches.push(fetch('/api/admin/roles'))
+      const [uRes, aRes, gRes, tRes, pRes, appRes, cfRes, rolesRes] = await Promise.all(fetches)
       if (uRes.ok) { const d = await uRes.json(); setUsers(d.users ?? []) }
       if (aRes.ok) { const d = await aRes.json(); setAnnouncements(d.announcements ?? []) }
       if (gRes.ok) { const d = await gRes.json(); setGames(d.games ?? []) }
@@ -2732,6 +3076,7 @@ export default function AdminPage() {
       if (pRes.ok) { const d = await pRes.json(); setPositions(d.positions ?? []) }
       if (appRes.ok) { const d = await appRes.json(); setApplications(d.applications ?? []) }
       if (cfRes.ok) { const d = await cfRes.json(); setContactFormFields(d.fields ?? []) }
+      if (rolesRes?.ok) { const d = await rolesRes.json(); setCustomRoles(d.roles ?? []) }
     } catch {
       showToast('Failed to load data', 'error')
     } finally {
@@ -2900,6 +3245,7 @@ export default function AdminPage() {
                   users={users}
                   myDiscordId={myDiscordId}
                   myRole={myRole}
+                  customRoles={customRoles}
                   onRefresh={fetchAll}
                   showToast={showToast}
                 />
@@ -2946,6 +3292,13 @@ export default function AdminPage() {
                   onRefresh={fetchAll}
                   showToast={showToast}
                   highlightedId={highlightedApplicationId}
+                />
+              )}
+              {activeTab === 'roles' && myRole === 'founder' && (
+                <RolesTab
+                  customRoles={customRoles}
+                  onRefresh={fetchAll}
+                  showToast={showToast}
                 />
               )}
             </>

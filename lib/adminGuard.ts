@@ -15,10 +15,11 @@ export async function requireFounder() {
 
 export async function requirePermission(permission: keyof RolePermissions) {
   const session = await getServerSession(authOptions)
-  const role = (session?.user as any)?.role as Role | undefined
-  if (!session || !role || !hasPermission(role, permission)) {
+  const role = (session?.user as any)?.role as string | undefined
+  const permissions = (session?.user as any)?.permissions as string[] | undefined
+  if (!session || !role || !hasPermission(role, permission, permissions)) {
     return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
   }
   const discordId = (session.user as any)?.discordId as string
-  return { session, discordId, role }
+  return { session, discordId, role: role as Role }
 }

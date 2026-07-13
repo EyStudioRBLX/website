@@ -48,17 +48,23 @@ export const authOptions: NextAuthOptions = {
         (session.user as any).id = token.sub
         ;(session.user as any).discordId = token.discordId as string
         ;(session.user as any).role = token.role as string
+        ;(session.user as any).permissions = token.permissions as string[] | undefined
       }
       return session
     },
 
-    async jwt({ token, account, profile }) {
+    async jwt({ token, account }) {
       if (account?.provider === 'discord') {
         token.discordId = account.providerAccountId
         try {
           await connectDB()
-          const dbUser = await User.findOne({ discordId: account.providerAccountId }).lean()
-          if (dbUser) token.role = (dbUser as any).role
+          const dbUser = await User.findOne({ discordId: account.providerAccountId }).lean() as any
+          if (dbUser) {
+            token.role = dbUser.role
+            if (dbUser.customPermissions?.length) {
+              token.permissions = dbUser.customPermissions
+            }
+          }
         } catch {}
       }
       return token

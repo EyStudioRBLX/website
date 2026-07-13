@@ -13,6 +13,28 @@ export interface RolePermissions {
   viewDashboard: boolean
 }
 
+export const ALL_PERMISSION_KEYS: (keyof RolePermissions)[] = [
+  'manageUsers',
+  'manageRoles',
+  'manageGames',
+  'manageScripts',
+  'manageAnnouncements',
+  'manageContactForm',
+  'viewAdminPanel',
+  'viewDashboard',
+]
+
+export const PERMISSION_LABELS: Record<keyof RolePermissions, string> = {
+  manageUsers:        'Nutzer verwalten',
+  manageRoles:        'Rollen verwalten',
+  manageGames:        'Spiele verwalten',
+  manageScripts:      'Scripts verwalten',
+  manageAnnouncements:'Ankündigungen verwalten',
+  manageContactForm:  'Kontaktformular verwalten',
+  viewAdminPanel:     'Admin-Panel sehen',
+  viewDashboard:      'Dashboard sehen',
+}
+
 const ALL_PERMISSIONS: RolePermissions = {
   manageUsers: true,
   manageRoles: true,
@@ -120,8 +142,13 @@ export const ROLES: Record<Role, { label: string; color: string; bg: string; bor
   },
 }
 
-export function hasPermission(role: Role, permission: keyof RolePermissions): boolean {
-  return ROLES[role]?.permissions[permission] ?? false
+export function hasPermission(
+  role: string,
+  permission: keyof RolePermissions,
+  customPermissions?: string[]
+): boolean {
+  if (ROLES[role as Role]) return ROLES[role as Role].permissions[permission]
+  return customPermissions?.includes(permission) ?? false
 }
 
 export function getRoleMeta(role: string) {
@@ -130,11 +157,15 @@ export function getRoleMeta(role: string) {
 
 export const ROLE_HIERARCHY: Role[] = ['user', 'helper', 'skripter', 'mapper', 'owner', 'founder']
 
-export function getRoleRank(role: Role): number {
-  return ROLE_HIERARCHY.indexOf(role)
+export function getRoleRank(role: string): number {
+  return ROLE_HIERARCHY.indexOf(role as Role)
 }
 
-export function canManage(actorRole: Role, targetRole: Role): boolean {
+export function canManage(actorRole: string, targetRole: string): boolean {
   if (actorRole === 'founder') return true
-  return getRoleRank(actorRole) > getRoleRank(targetRole)
+  const actorRank = getRoleRank(actorRole)
+  if (actorRank === -1) return false
+  const targetRank = getRoleRank(targetRole)
+  const effectiveTargetRank = targetRank === -1 ? 0 : targetRank
+  return actorRank > effectiveTargetRank
 }
